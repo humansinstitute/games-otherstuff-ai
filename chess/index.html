@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Chesstr - Play Chess</title>
+  <link rel="icon" type="image/png" href="icon.png?v=2">
+  <link rel="apple-touch-icon" href="icon.png?v=2">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1525">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+      user-select: none;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .game-container {
+      background-color: #0d1525;
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #1a3a5c;
+      box-shadow: 0 0 20px rgba(0, 150, 200, 0.2);
+      max-height: calc(100dvh - 20px);
+      max-width: calc(100vw - 20px);
+      display: flex;
+      flex-direction: column;
+      transform-origin: center center;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 0 5px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background-color: #00ff88;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00ff88;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .status-dot:hover {
+      transform: scale(1.3);
+    }
+
+    .title {
+      color: #4a9eff;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .status-text {
+      color: #4a7a9e;
+      font-size: 11px;
+    }
+
+    .status-text span {
+      color: #6ab0e0;
+    }
+
+    .status-text.thinking {
+      color: #e8a030;
+    }
+
+    .status-text.check {
+      color: #e74c3c;
+    }
+
+    /* Chess Board */
+    .chess-board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      width: 320px;
+      height: 320px;
+      border: 2px solid #1a3a5c;
+      background-color: #0a1628;
+    }
+
+    .square {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      cursor: pointer;
+      transition: background-color 0.1s;
+      position: relative;
+    }
+
+    .square.light {
+      background-color: #b7c0d8;
+    }
+
+    .square.dark {
+      background-color: #6a7b9c;
+    }
+
+    .square.selected {
+      background-color: #7cb342 !important;
+    }
+
+    .square.valid-move::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background-color: rgba(76, 175, 80, 0.6);
+      border-radius: 50%;
+    }
+
+    .square.valid-capture {
+      box-shadow: inset 0 0 0 4px rgba(76, 175, 80, 0.6);
+    }
+
+    .square.last-move {
+      background-color: rgba(255, 235, 59, 0.4) !important;
+    }
+
+    .square.check {
+      background-color: rgba(244, 67, 54, 0.5) !important;
+    }
+
+    .square:hover {
+      filter: brightness(1.1);
+    }
+
+    .piece {
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    .piece.white {
+      color: #fff;
+      text-shadow: 0 0 3px #000, 1px 1px 2px rgba(0,0,0,0.8);
+    }
+
+    .piece.black {
+      color: #1a1a1a;
+      text-shadow: 0 0 2px rgba(255,255,255,0.3);
+    }
+
+    /* Coordinates */
+    .board-wrapper {
+      position: relative;
+    }
+
+    .coords-file, .coords-rank {
+      position: absolute;
+      display: flex;
+      color: #4a7a9e;
+      font-size: 10px;
+    }
+
+    .coords-file {
+      bottom: -16px;
+      left: 0;
+      right: 0;
+      justify-content: space-around;
+      padding: 0 10px;
+    }
+
+    .coords-rank {
+      top: 0;
+      bottom: 0;
+      left: -14px;
+      flex-direction: column;
+      justify-content: space-around;
+      align-items: center;
+      padding: 5px 0;
+    }
+
+    .move-count {
+      color: #4a7a9e;
+      font-size: 11px;
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .move-count span {
+      color: #6ab0e0;
+    }
+
+    /* Menu Modal */
+    .menu-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .menu-modal.active {
+      display: flex;
+    }
+
+    .menu-content {
+      background-color: #0d1525;
+      border: 2px solid #1a3a5c;
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 280px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .menu-content h3 {
+      color: #4a9eff;
+      margin-bottom: 15px;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .menu-item {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #2a4a6a;
+      color: #6ab0e0;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .menu-item:hover {
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
+
+    .menu-item.danger {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+
+    .menu-item.danger:hover {
+      background-color: #e74c3c;
+      color: #fff;
+    }
+
+    .menu-close {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #4a7a9e;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .keys-display {
+      background-color: #0a1628;
+      border: 1px solid #1a3a5c;
+      border-radius: 5px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 10px;
+      word-break: break-all;
+    }
+
+    .keys-display .label {
+      color: #4a7a9e;
+      font-size: 9px;
+      margin-bottom: 4px;
+    }
+
+    .keys-display .value {
+      color: #9b59b6;
+      margin-bottom: 10px;
+    }
+
+    .keys-display .masked {
+      color: #4a7a9e;
+      font-style: italic;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #4a7a9e;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 9px;
+      cursor: pointer;
+      margin-left: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .copy-btn:hover {
+      border-color: #9b59b6;
+      color: #9b59b6;
+    }
+
+    .copy-btn.copied {
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    .key-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .key-row .value {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    /* Start Screen */
+    .start-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 22, 40, 0.98);
+      border: 2px solid #1a3a5c;
+      color: #6ab0e0;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 100;
+      width: 300px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .start-screen h1 {
+      color: #4a9eff;
+      font-size: 24px;
+      margin-bottom: 8px;
+      letter-spacing: 3px;
+    }
+
+    .start-screen .subtitle {
+      color: #4a7a9e;
+      font-size: 12px;
+      margin-bottom: 25px;
+    }
+
+    .color-choice {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .color-choice button {
+      flex: 1;
+      background-color: transparent;
+      color: #6ab0e0;
+      border: 2px solid #2a4a6a;
+      padding: 15px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      transition: all 0.2s;
+    }
+
+    .color-choice button:hover {
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
+
+    .color-choice button.selected {
+      background-color: #4a9eff;
+      color: #0a1628;
+      border-color: #4a9eff;
+    }
+
+    .color-choice .piece-preview {
+      font-size: 24px;
+      margin-bottom: 5px;
+    }
+
+    .start-screen .start-btn {
+      display: block;
+      width: 100%;
+      background-color: transparent;
+      color: #e8a030;
+      border: 2px solid #e8a030;
+      padding: 12px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+
+    .start-screen .start-btn:hover {
+      background-color: #e8a030;
+      color: #0a1628;
+    }
+
+    .start-screen .btn-nip07 {
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .start-screen .btn-nip07:hover {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+
+    .start-screen .player-info {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #4a7a9e;
+    }
+
+    .start-screen .player-info .npub {
+      color: #9b59b6;
+      font-family: monospace;
+    }
+
+    /* Game Over Overlay */
+    .game-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 22, 40, 0.98);
+      border: 2px solid #e8a030;
+      color: #e8a030;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 30px rgba(232, 160, 48, 0.3);
+      z-index: 100;
+      width: 300px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .game-overlay.win {
+      border-color: #00ff88;
+      color: #00ff88;
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+    }
+
+    .game-overlay.loss {
+      border-color: #e74c3c;
+      color: #e74c3c;
+      box-shadow: 0 0 30px rgba(231, 76, 60, 0.3);
+    }
+
+    .game-overlay.draw {
+      border-color: #9b59b6;
+      color: #9b59b6;
+      box-shadow: 0 0 30px rgba(155, 89, 182, 0.3);
+    }
+
+    .game-overlay h2 {
+      margin-bottom: 10px;
+      letter-spacing: 3px;
+    }
+
+    .game-overlay p {
+      color: #6ab0e0;
+      margin-bottom: 15px;
+    }
+
+    .game-overlay button {
+      background-color: transparent;
+      color: inherit;
+      border: 2px solid currentColor;
+      padding: 10px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .game-overlay button:hover {
+      background-color: currentColor;
+      color: #0a1628;
+    }
+
+    .game-overlay .btn-nostr {
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .game-overlay .btn-nostr:hover {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+
+    .game-overlay .btn-nostr:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .publish-status {
+      font-size: 11px;
+      margin-top: 8px;
+      color: #6ab0e0;
+    }
+
+    /* Promotion Modal */
+    .promotion-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 22, 40, 0.98);
+      border: 2px solid #4a9eff;
+      color: #6ab0e0;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      z-index: 150;
+    }
+
+    .promotion-modal.active {
+      display: block;
+    }
+
+    .promotion-modal h3 {
+      color: #4a9eff;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    .promotion-options {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .promotion-options button {
+      width: 50px;
+      height: 50px;
+      font-size: 32px;
+      background-color: #1a2a3a;
+      border: 2px solid #2a4a6a;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .promotion-options button:hover {
+      border-color: #4a9eff;
+      background-color: #2a4a6a;
+    }
+
+    .promotion-options button.white-piece {
+      color: #fff;
+      text-shadow: 0 0 3px #000;
+    }
+
+    .promotion-options button.black-piece {
+      color: #1a1a1a;
+    }
+
+    @media (max-width: 400px) {
+      .chess-board {
+        width: 280px;
+        height: 280px;
+      }
+
+      .square {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <div class="status-dot"></div>
+      <div class="title">CHESSTR</div>
+      <div class="status-text" id="statusText">Your turn</div>
+    </div>
+
+    <div class="board-wrapper">
+      <div class="coords-rank" id="coordsRank"></div>
+      <div class="chess-board" id="chessBoard"></div>
+      <div class="coords-file" id="coordsFile"></div>
+    </div>
+
+    <div class="move-count">
+      Moves: <span id="moveCount">0</span>
+    </div>
+  </div>
+
+  <!-- Menu Modal -->
+  <div class="menu-modal" id="menuModal">
+    <div class="menu-content" id="menuContent"></div>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="start-screen" id="startScreen">
+    <h1>CHESSTR</h1>
+    <div class="subtitle">Play Chess vs Computer</div>
+
+    <div class="color-choice">
+      <button id="chooseWhite" class="selected">
+        <div class="piece-preview">&#9812;</div>
+        WHITE
+      </button>
+      <button id="chooseBlack">
+        <div class="piece-preview">&#9818;</div>
+        BLACK
+      </button>
+    </div>
+
+    <button class="start-btn" id="startGameBtn">START GAME</button>
+    <button class="start-btn btn-nip07" id="startNip07Btn" style="display:none;">Login with NIP-07</button>
+
+    <div class="player-info">
+      Playing as <span class="npub" id="startNpub">...</span>
+    </div>
+  </div>
+
+  <!-- Game Over Overlay -->
+  <div class="game-overlay" id="gameOverScreen">
+    <h2 id="gameOverTitle">GAME OVER</h2>
+    <p id="gameOverMessage">Good game!</p>
+    <button id="playAgainBtn">PLAY AGAIN</button>
+    <button class="btn-nostr" id="publishNostrBtn">Share on Nostr</button>
+    <div class="publish-status" id="publishStatus"></div>
+  </div>
+
+  <!-- Promotion Modal -->
+  <div class="promotion-modal" id="promotionModal">
+    <h3>Promote Pawn To:</h3>
+    <div class="promotion-options" id="promotionOptions"></div>
+  </div>
+
+  <script src="nostr.js"></script>
+  <script type="module">
+    import { ChessGame, GameState } from './game.js';
+
+    // Piece Unicode symbols
+    const PIECE_SYMBOLS = {
+      w: { k: '\u2654', q: '\u2655', r: '\u2656', b: '\u2657', n: '\u2658', p: '\u2659' },
+      b: { k: '\u265A', q: '\u265B', r: '\u265C', b: '\u265D', n: '\u265E', p: '\u265F' }
+    };
+
+    const game = new ChessGame();
+    let selectedColor = 'w';
+    let gameResult = null;
+    let gameMoves = 0;
+
+    // UI Elements
+    const chessBoard = document.getElementById('chessBoard');
+    const statusText = document.getElementById('statusText');
+    const moveCountEl = document.getElementById('moveCount');
+    const startScreen = document.getElementById('startScreen');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const startNip07Btn = document.getElementById('startNip07Btn');
+    const startNpub = document.getElementById('startNpub');
+    const chooseWhite = document.getElementById('chooseWhite');
+    const chooseBlack = document.getElementById('chooseBlack');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const gameOverTitle = document.getElementById('gameOverTitle');
+    const gameOverMessage = document.getElementById('gameOverMessage');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const publishNostrBtn = document.getElementById('publishNostrBtn');
+    const publishStatus = document.getElementById('publishStatus');
+    const promotionModal = document.getElementById('promotionModal');
+    const promotionOptions = document.getElementById('promotionOptions');
+    const coordsRank = document.getElementById('coordsRank');
+    const coordsFile = document.getElementById('coordsFile');
+
+    // Initialize board coordinates
+    function initCoords() {
+      const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+      const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+
+      coordsFile.innerHTML = files.map(f => `<span>${f}</span>`).join('');
+      coordsRank.innerHTML = ranks.map(r => `<span>${r}</span>`).join('');
+    }
+
+    // Create board squares
+    function initBoard() {
+      chessBoard.innerHTML = '';
+      for (let rank = 0; rank < 8; rank++) {
+        for (let file = 0; file < 8; file++) {
+          const square = document.createElement('div');
+          square.className = 'square ' + ((rank + file) % 2 === 0 ? 'light' : 'dark');
+          square.dataset.rank = rank;
+          square.dataset.file = file;
+          square.addEventListener('click', () => handleSquareClick(file, rank));
+          chessBoard.appendChild(square);
+        }
+      }
+    }
+
+    // Render board state
+    function renderBoard(state) {
+      const squares = chessBoard.querySelectorAll('.square');
+      const validMoveSquares = new Set(state.validMoves.map(m => m.to));
+      const captureSquares = new Set(state.validMoves.filter(m => m.captured).map(m => m.to));
+
+      let selectedCoords = null;
+      if (state.selectedSquare) {
+        selectedCoords = game.squareToCoords(state.selectedSquare);
+      }
+
+      let lastMoveFrom = null, lastMoveTo = null;
+      if (state.lastMove) {
+        lastMoveFrom = game.squareToCoords(state.lastMove.from);
+        lastMoveTo = game.squareToCoords(state.lastMove.to);
+      }
+
+      // Find king in check
+      let kingInCheck = null;
+      if (state.isCheck) {
+        for (let r = 0; r < 8; r++) {
+          for (let f = 0; f < 8; f++) {
+            const piece = state.board[r][f];
+            if (piece && piece.type === 'k' && piece.color === state.turn) {
+              kingInCheck = { rank: r, file: f };
+            }
+          }
+        }
+      }
+
+      squares.forEach((square, idx) => {
+        const rank = Math.floor(idx / 8);
+        const file = idx % 8;
+        const piece = state.board[rank][file];
+        const squareName = game.coordsToSquare(file, rank);
+
+        // Reset classes
+        square.className = 'square ' + ((rank + file) % 2 === 0 ? 'light' : 'dark');
+
+        // Selected square
+        if (selectedCoords && selectedCoords.rank === rank && selectedCoords.file === file) {
+          square.classList.add('selected');
+        }
+
+        // Last move highlight
+        if (lastMoveFrom && lastMoveFrom.rank === rank && lastMoveFrom.file === file) {
+          square.classList.add('last-move');
+        }
+        if (lastMoveTo && lastMoveTo.rank === rank && lastMoveTo.file === file) {
+          square.classList.add('last-move');
+        }
+
+        // King in check
+        if (kingInCheck && kingInCheck.rank === rank && kingInCheck.file === file) {
+          square.classList.add('check');
+        }
+
+        // Valid moves
+        if (validMoveSquares.has(squareName)) {
+          if (captureSquares.has(squareName)) {
+            square.classList.add('valid-capture');
+          } else {
+            square.classList.add('valid-move');
+          }
+        }
+
+        // Piece
+        if (piece) {
+          const symbol = PIECE_SYMBOLS[piece.color][piece.type];
+          square.innerHTML = `<span class="piece ${piece.color === 'w' ? 'white' : 'black'}">${symbol}</span>`;
+        } else {
+          square.innerHTML = '';
+        }
+      });
+
+      // Update move count
+      moveCountEl.textContent = Math.ceil(state.moveHistory.length / 2);
+    }
+
+    // Handle square clicks
+    function handleSquareClick(file, rank) {
+      game.handleSquareClick(file, rank);
+    }
+
+    // State change handler
+    game.onStateChange = (newState, oldState, data) => {
+      startScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      promotionModal.classList.remove('active');
+
+      switch (newState) {
+        case GameState.START_SCREEN:
+          startScreen.style.display = 'block';
+          break;
+
+        case GameState.PLAYING:
+          statusText.textContent = 'Your turn';
+          statusText.className = 'status-text';
+          break;
+
+        case GameState.COMPUTER_THINKING:
+          statusText.textContent = 'Thinking...';
+          statusText.className = 'status-text thinking';
+          break;
+
+        case GameState.PROMOTION_SELECT:
+          showPromotionDialog();
+          break;
+
+        case GameState.GAME_OVER:
+          gameResult = data.result;
+          gameMoves = data.moves;
+          showGameOver(data.result, data.moves);
+          break;
+      }
+    };
+
+    // Board update handler
+    game.onBoardUpdate = (state) => {
+      renderBoard(state);
+
+      if (state.isCheck && game.state === GameState.PLAYING) {
+        statusText.textContent = 'Check!';
+        statusText.className = 'status-text check';
+      }
+    };
+
+    // Show promotion dialog
+    function showPromotionDialog() {
+      const color = game.playerColor;
+      const pieces = ['q', 'r', 'b', 'n'];
+      const colorClass = color === 'w' ? 'white-piece' : 'black-piece';
+
+      promotionOptions.innerHTML = pieces.map(p => `
+        <button class="${colorClass}" data-piece="${p}">
+          ${PIECE_SYMBOLS[color][p]}
+        </button>
+      `).join('');
+
+      promotionOptions.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          game.selectPromotion(btn.dataset.piece);
+          promotionModal.classList.remove('active');
+        });
+      });
+
+      promotionModal.classList.add('active');
+    }
+
+    // Show game over screen
+    function showGameOver(result, moves) {
+      gameOverScreen.className = 'game-overlay ' + result;
+
+      if (result === 'win') {
+        gameOverTitle.textContent = 'VICTORY!';
+        gameOverMessage.textContent = `You won in ${moves} moves!`;
+      } else if (result === 'loss') {
+        gameOverTitle.textContent = 'DEFEAT';
+        gameOverMessage.textContent = `You lost after ${moves} moves.`;
+      } else {
+        gameOverTitle.textContent = 'DRAW';
+        gameOverMessage.textContent = `Game drawn after ${moves} moves.`;
+      }
+
+      resetPublishButton();
+      gameOverScreen.style.display = 'block';
+    }
+
+    // Color selection
+    chooseWhite.addEventListener('click', () => {
+      selectedColor = 'w';
+      chooseWhite.classList.add('selected');
+      chooseBlack.classList.remove('selected');
+    });
+
+    chooseBlack.addEventListener('click', () => {
+      selectedColor = 'b';
+      chooseBlack.classList.add('selected');
+      chooseWhite.classList.remove('selected');
+    });
+
+    // Start game
+    startGameBtn.addEventListener('click', async () => {
+      startScreen.style.display = 'none';
+      await game.start(selectedColor);
+    });
+
+    // Play again
+    playAgainBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      startScreen.style.display = 'block';
+    });
+
+    // Nostr integration
+    async function updateStartScreen() {
+      if (typeof window.NostrGame === 'undefined') {
+        setTimeout(updateStartScreen, 100);
+        return;
+      }
+
+      // Wait for Nostr to be fully initialized
+      await window.NostrGame.ready;
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) {
+        startNpub.textContent = '...';
+        return;
+      }
+
+      const shortNpub = window.NostrGame.getShortNpub(player.npub);
+      startNpub.textContent = shortNpub;
+
+      if (window.NostrGame.hasNostrExtension() && !player.isExtension) {
+        startNip07Btn.style.display = 'block';
+      } else {
+        startNip07Btn.style.display = 'none';
+      }
+    }
+
+    startNip07Btn.addEventListener('click', async () => {
+      try {
+        startNip07Btn.disabled = true;
+        startNip07Btn.textContent = 'Connecting...';
+        await window.NostrGame.loginWithExtension();
+        updateStartScreen();
+      } catch (err) {
+        alert('Login failed: ' + err.message);
+      } finally {
+        startNip07Btn.disabled = false;
+        startNip07Btn.textContent = 'Login with NIP-07';
+      }
+    });
+
+    // Publish to Nostr
+    function resetPublishButton() {
+      publishNostrBtn.disabled = false;
+      publishNostrBtn.textContent = 'Share on Nostr';
+      publishStatus.textContent = '';
+    }
+
+    publishNostrBtn.addEventListener('click', async () => {
+      if (typeof window.NostrGame === 'undefined') {
+        publishStatus.textContent = 'Nostr not ready';
+        return;
+      }
+
+      publishNostrBtn.disabled = true;
+      publishNostrBtn.textContent = 'Publishing...';
+      publishStatus.textContent = '';
+
+      try {
+        const result = await window.NostrGame.publishGameResult(
+          gameResult,
+          gameMoves,
+          game.getPlayerColorName()
+        );
+
+        const successCount = result.results.filter(r => r.success).length;
+        if (successCount > 0) {
+          publishStatus.innerHTML = `Published to ${successCount} relay(s)!`;
+          publishNostrBtn.textContent = 'Published!';
+        } else {
+          publishStatus.textContent = 'Failed to publish to relays';
+          publishNostrBtn.textContent = 'Share on Nostr';
+          publishNostrBtn.disabled = false;
+        }
+      } catch (err) {
+        publishStatus.textContent = 'Error: ' + err.message;
+        publishNostrBtn.textContent = 'Share on Nostr';
+        publishNostrBtn.disabled = false;
+      }
+    });
+
+    // Menu functionality
+    const statusDot = document.querySelector('.status-dot');
+    const menuModal = document.getElementById('menuModal');
+    const menuContent = document.getElementById('menuContent');
+
+    function showMainMenu() {
+      menuContent.innerHTML = `
+        <h3>MENU</h3>
+        <button class="menu-item" id="menuNewGame">New Game</button>
+        <button class="menu-item" id="menuShowKeys">Show Keys</button>
+        <button class="menu-item danger" id="menuNewPlayer">New Player</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+      menuModal.classList.add('active');
+
+      document.getElementById('menuNewGame').onclick = () => {
+        closeMenu();
+        startScreen.style.display = 'block';
+        gameOverScreen.style.display = 'none';
+      };
+      document.getElementById('menuShowKeys').onclick = showKeysMenu;
+      document.getElementById('menuNewPlayer').onclick = confirmNewPlayer;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    function showKeysMenu() {
+      if (typeof window.NostrGame === 'undefined') return;
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) return;
+
+      const npubDisplay = player.npub || 'Not available';
+      const hasNsec = !player.isExtension && player.nsec;
+
+      let nsecHtml;
+      if (player.isExtension) {
+        nsecHtml = '<span class="masked">Not available (using extension)</span>';
+      } else if (player.nsec) {
+        nsecHtml = `
+          <div class="key-row">
+            <div class="value">${player.nsec}</div>
+            <button class="copy-btn" id="copyNsec">COPY</button>
+          </div>
+        `;
+      } else {
+        nsecHtml = '<span class="masked">Not available</span>';
+      }
+
+      menuContent.innerHTML = `
+        <h3>YOUR KEYS</h3>
+        <div class="keys-display">
+          <div class="label">PUBLIC KEY (npub)</div>
+          <div class="key-row">
+            <div class="value">${npubDisplay}</div>
+            <button class="copy-btn" id="copyNpub">COPY</button>
+          </div>
+          <div class="label" style="margin-top: 10px;">PRIVATE KEY (nsec)</div>
+          ${hasNsec ? nsecHtml : `<div class="value">${nsecHtml}</div>`}
+        </div>
+        <button class="menu-item" id="menuBack">Back</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+
+      document.getElementById('copyNpub').onclick = () => copyToClipboard(player.npub, 'copyNpub');
+      if (hasNsec) {
+        document.getElementById('copyNsec').onclick = () => copyToClipboard(player.nsec, 'copyNsec');
+      }
+      document.getElementById('menuBack').onclick = showMainMenu;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    async function copyToClipboard(text, btnId) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById(btnId);
+        btn.textContent = 'COPIED';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'COPY';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        alert('Failed to copy');
+      }
+    }
+
+    function confirmNewPlayer() {
+      menuContent.innerHTML = `
+        <h3>NEW PLAYER</h3>
+        <p style="color: #e74c3c; font-size: 11px; margin-bottom: 15px;">
+          This will generate a new identity. Your current keys will be lost forever!
+        </p>
+        <button class="menu-item danger" id="menuConfirmNew">Yes, Generate New Key</button>
+        <button class="menu-item" id="menuBack">Cancel</button>
+      `;
+
+      document.getElementById('menuConfirmNew').onclick = async () => {
+        if (typeof window.NostrGame !== 'undefined') {
+          await window.NostrGame.logout();
+          updateStartScreen();
+        }
+        closeMenu();
+      };
+      document.getElementById('menuBack').onclick = showMainMenu;
+    }
+
+    function closeMenu() {
+      menuModal.classList.remove('active');
+    }
+
+    statusDot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showMainMenu();
+    });
+
+    menuModal.addEventListener('click', (e) => {
+      if (e.target === menuModal) {
+        closeMenu();
+      }
+    });
+
+    // Responsive scaling
+    const gameContainer = document.querySelector('.game-container');
+
+    function resizeGame() {
+      const containerWidth = 350;
+      const containerHeight = 420;
+
+      const vv = window.visualViewport;
+      const availableWidth = (vv ? vv.width : window.innerWidth) - 20;
+      const availableHeight = (vv ? vv.height : window.innerHeight) - 20;
+
+      const scaleX = availableWidth / containerWidth;
+      const scaleY = availableHeight / containerHeight;
+      const scale = Math.min(scaleX, scaleY, 1.2);
+
+      gameContainer.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('orientationchange', () => setTimeout(resizeGame, 100));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeGame);
+    }
+    resizeGame();
+
+    // Initialize
+    initCoords();
+    initBoard();
+    setTimeout(updateStartScreen, 200);
+  </script>
+</body>
+</html>

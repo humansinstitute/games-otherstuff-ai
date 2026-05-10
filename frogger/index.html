@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frogger 3D</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- UI Overlay -->
+        <div id="ui-overlay">
+            <!-- Start Screen -->
+            <div id="start-screen">
+                <div class="start-panel">
+                    <h1>Froggers Crossing</h1>
+                    <p class="tagline">Dash between traffic to reach the objective!</p>
+                    <ul class="instructions">
+                        <li>Reach the highlighted pad to score. Next pad spawns on the opposite side.</li>
+                        <li>Coins appear briefly on lanes — collect them for bonus points.</li>
+                        <li>Avoid cars; each level makes traffic faster and denser.</li>
+                        <li>Controls: Arrow Keys or WASD to hop.</li>
+                    </ul>
+                    <button id="start-button">Start Crossing</button>
+                </div>
+            </div>
+
+            <!-- HUD -->
+            <div id="hud">
+                <div id="score-display">Score: <span id="score-value">0</span></div>
+                <div id="level-display">Level: <span id="level-value">1</span></div>
+                <div id="timer-display">Time: <span id="timer-value">00.0s</span></div>
+                <div id="lives-display">
+                    Lives: <span id="lives-count">❤️❤️❤️</span>
+                </div>
+            </div>
+
+            <!-- Game Over Message -->
+            <div id="game-over-message" style="display: none;">
+                <h1>GAME OVER</h1>
+                <p class="game-over-tagline">Traffic wins this time.</p>
+                <div class="game-over-stats">
+                    <div>Score: <span id="final-score">0</span></div>
+                    <div>Level Reached: <span id="final-level">1</span></div>
+                    <div>Objectives Cleared: <span id="final-objectives">0</span></div>
+                </div>
+                <button id="restart-button">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js via ES6 modules -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.152.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <!-- Main game script -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>MICRO RACER</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="0f48fa29-c7b3-4880-8428-4ade7c99d591"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+      user-select: none;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .game-container {
+      background-color: #16213e;
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #e94560;
+      box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+      max-height: calc(100dvh - 20px);
+      max-width: calc(100vw - 20px);
+      display: flex;
+      flex-direction: column;
+      transform-origin: center center;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 0 5px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background-color: #00ff88;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00ff88;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .status-dot:hover {
+      transform: scale(1.3);
+    }
+
+    .title {
+      color: #e94560;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .stats {
+      color: #4a7a9e;
+      font-size: 11px;
+    }
+
+    .stats span {
+      color: #00ff88;
+    }
+
+    #gameCanvas {
+      background-color: #0f0f23;
+      border: 2px solid #e94560;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .controls-hint {
+      color: #4a7a9e;
+      font-size: 11px;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .controls-hint .key {
+      color: #e94560;
+    }
+
+    /* Mobile controls */
+    .mobile-controls {
+      display: none;
+      margin-top: 20px;
+      gap: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .control-btn {
+      width: 65px;
+      height: 65px;
+      background-color: #16213e;
+      color: #e94560;
+      border: 2px solid #e94560;
+      border-radius: 8px;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      transition: all 0.1s;
+    }
+
+    .control-btn:active {
+      background-color: #e94560;
+      color: #fff;
+    }
+
+    .control-btn.gas-btn {
+      width: 80px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #00ff88;
+      border-color: #00ff88;
+    }
+
+    .control-btn.gas-btn:active {
+      background-color: #00ff88;
+      color: #0f0f23;
+    }
+
+    .control-btn.brake-btn {
+      width: 80px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #ff6b6b;
+      border-color: #ff6b6b;
+    }
+
+    .control-btn.brake-btn:active {
+      background-color: #ff6b6b;
+      color: #0f0f23;
+    }
+
+    /* Menu Modal */
+    .menu-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .menu-modal.active {
+      display: flex;
+    }
+
+    .menu-content {
+      background-color: #16213e;
+      border: 2px solid #e94560;
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 280px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .menu-content h3 {
+      color: #e94560;
+      margin-bottom: 15px;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .menu-item {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #6ab0e0;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .menu-item:hover {
+      border-color: #e94560;
+      color: #e94560;
+    }
+
+    .menu-item.danger {
+      border-color: #ff6b6b;
+      color: #ff6b6b;
+    }
+
+    .menu-item.danger:hover {
+      background-color: #ff6b6b;
+      color: #fff;
+    }
+
+    .menu-close {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #4a7a9e;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .keys-display {
+      background-color: #0f0f23;
+      border: 1px solid #e94560;
+      border-radius: 5px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 10px;
+      word-break: break-all;
+    }
+
+    .keys-display .label {
+      color: #4a7a9e;
+      font-size: 9px;
+      margin-bottom: 4px;
+    }
+
+    .keys-display .value {
+      color: #9b59b6;
+      margin-bottom: 10px;
+    }
+
+    .keys-display .masked {
+      color: #4a7a9e;
+      font-style: italic;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #4a7a9e;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 9px;
+      cursor: pointer;
+      margin-left: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .copy-btn:hover {
+      border-color: #9b59b6;
+      color: #9b59b6;
+    }
+
+    .copy-btn.copied {
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    .key-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .key-row .value {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    /* Start Screen */
+    .start-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(22, 33, 62, 0.98);
+      border: 2px solid #e94560;
+      color: #e94560;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 100;
+      width: 280px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .start-screen h1 {
+      color: #e94560;
+      font-size: 24px;
+      margin-bottom: 8px;
+      letter-spacing: 3px;
+      text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+    }
+
+    .start-screen .subtitle {
+      color: #4a7a9e;
+      font-size: 12px;
+      margin-bottom: 25px;
+    }
+
+    .start-screen button {
+      display: block;
+      width: 100%;
+      background-color: transparent;
+      color: #00ff88;
+      border: 2px solid #00ff88;
+      padding: 12px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+
+    .start-screen button:hover {
+      background-color: #00ff88;
+      color: #0f0f23;
+    }
+
+    .start-screen .btn-nip07 {
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .start-screen .btn-nip07:hover {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+
+    .start-screen .player-info {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #4a7a9e;
+    }
+
+    .start-screen .player-info .npub {
+      color: #9b59b6;
+      font-family: monospace;
+    }
+
+    /* Race Finish Overlay */
+    .game-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(22, 33, 62, 0.98);
+      border: 2px solid #00ff88;
+      color: #00ff88;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+      z-index: 100;
+      width: 300px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .game-overlay h2 {
+      margin-bottom: 10px;
+      letter-spacing: 3px;
+    }
+
+    .game-overlay p {
+      color: #6ab0e0;
+      margin-bottom: 8px;
+    }
+
+    .game-overlay .time-display {
+      font-size: 24px;
+      color: #ffffff;
+      margin-bottom: 15px;
+    }
+
+    .game-overlay button {
+      background-color: transparent;
+      color: #00ff88;
+      border: 2px solid #00ff88;
+      padding: 10px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .game-overlay button:hover {
+      background-color: #00ff88;
+      color: #0f0f23;
+    }
+
+    .game-overlay .btn-nostr {
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .game-overlay .btn-nostr:hover {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+
+    .game-overlay .btn-nostr:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .publish-status {
+      font-size: 11px;
+      margin-top: 8px;
+      color: #6ab0e0;
+    }
+
+    @media (max-width: 600px) {
+      .controls-hint {
+        display: none;
+      }
+    }
+
+    @media (pointer: coarse) {
+      .mobile-controls {
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-height: 700px) and (pointer: coarse) {
+      .mobile-controls {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <div class="status-dot"></div>
+      <div class="title">MICRO RACER</div>
+      <div class="stats">Speed: <span id="speed">0</span></div>
+    </div>
+    <canvas id="gameCanvas" width="480" height="360"></canvas>
+    <div class="controls-hint">
+      Steer: <span class="key">Left/Right</span> | Gas: <span class="key">Up</span> | Brake: <span class="key">Down</span>
+    </div>
+  </div>
+
+  <div class="mobile-controls">
+    <div class="control-row">
+      <button class="control-btn gas-btn" id="btnGas">GAS</button>
+    </div>
+    <div class="control-row">
+      <button class="control-btn" id="btnLeft">&#9664;</button>
+      <button class="control-btn brake-btn" id="btnBrake">BRAKE</button>
+      <button class="control-btn" id="btnRight">&#9654;</button>
+    </div>
+  </div>
+
+  <!-- Menu Modal -->
+  <div class="menu-modal" id="menuModal">
+    <div class="menu-content" id="menuContent">
+      <!-- Content will be set by JS -->
+    </div>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="start-screen" id="startScreen">
+    <h1>MICRO RACER</h1>
+    <div class="subtitle">Top-down racing action!</div>
+    <button id="startGameBtn">START RACE</button>
+    <button class="btn-nip07" id="startNip07Btn" style="display:none;">Login with NIP-07</button>
+    <div class="player-info">
+      Playing as <span class="npub" id="startNpub">...</span>
+    </div>
+  </div>
+
+  <!-- Race Finish Overlay -->
+  <div class="game-overlay" id="raceFinishScreen">
+    <h2>RACE COMPLETE!</h2>
+    <p>Total Time:</p>
+    <div class="time-display" id="finalTime">0:00.00</div>
+    <p>Score: <span id="finalScore">0</span></p>
+    <button id="restartBtn">RACE AGAIN</button>
+    <button class="btn-nostr" id="publishNostrBtn">Share on Nostr</button>
+    <div class="publish-status" id="publishStatus"></div>
+  </div>
+
+  <script src="nostr.js"></script>
+  <script type="module">
+    import { Game, GameState } from './game.js';
+
+    const canvas = document.getElementById('gameCanvas');
+    const game = new Game(canvas);
+
+    // UI Elements
+    const speedElement = document.getElementById('speed');
+    const startScreen = document.getElementById('startScreen');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const startNip07Btn = document.getElementById('startNip07Btn');
+    const startNpub = document.getElementById('startNpub');
+    const raceFinishScreen = document.getElementById('raceFinishScreen');
+    const finalTimeElement = document.getElementById('finalTime');
+    const finalScoreElement = document.getElementById('finalScore');
+    const restartBtn = document.getElementById('restartBtn');
+    const publishNostrBtn = document.getElementById('publishNostrBtn');
+    const publishStatus = document.getElementById('publishStatus');
+
+    // Format time helper
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      const ms = Math.floor((seconds % 1) * 100);
+      return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    }
+
+    // State change callback
+    game.onStateChange = (newState, oldState, data) => {
+      // Hide all overlays first
+      startScreen.style.display = 'none';
+      raceFinishScreen.style.display = 'none';
+
+      switch (newState) {
+        case GameState.START_SCREEN:
+          startScreen.style.display = 'block';
+          break;
+        case GameState.RACE_FINISH:
+          finalTimeElement.textContent = formatTime(game.getRaceTime());
+          finalScoreElement.textContent = game.score;
+          raceFinishScreen.style.display = 'block';
+          resetPublishButton();
+          break;
+      }
+    };
+
+    // Speed change callback
+    game.onSpeedChange = (speed) => {
+      speedElement.textContent = Math.floor(speed);
+    };
+
+    // Score change callback
+    game.onScoreChange = (score) => {
+      // Could update a score display if needed
+    };
+
+    // Keyboard input
+    document.addEventListener('keydown', (e) => {
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          game.setInput('left', true);
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          e.preventDefault();
+          game.setInput('right', true);
+          break;
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          e.preventDefault();
+          game.setInput('accelerate', true);
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          e.preventDefault();
+          game.setInput('brake', true);
+          break;
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      switch (e.key) {
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          game.setInput('left', false);
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          game.setInput('right', false);
+          break;
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          game.setInput('accelerate', false);
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          game.setInput('brake', false);
+          break;
+      }
+    });
+
+    // Mobile controls
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+    const btnGas = document.getElementById('btnGas');
+    const btnBrake = document.getElementById('btnBrake');
+
+    function setupMobileButton(btn, inputKey) {
+      btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        game.setInput(inputKey, true);
+      }, { passive: false });
+
+      btn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        game.setInput(inputKey, false);
+      }, { passive: false });
+
+      btn.addEventListener('mousedown', () => game.setInput(inputKey, true));
+      btn.addEventListener('mouseup', () => game.setInput(inputKey, false));
+      btn.addEventListener('mouseleave', () => game.setInput(inputKey, false));
+    }
+
+    setupMobileButton(btnLeft, 'left');
+    setupMobileButton(btnRight, 'right');
+    setupMobileButton(btnGas, 'accelerate');
+    setupMobileButton(btnBrake, 'brake');
+
+    // Prevent scrolling on mobile
+    document.body.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    // Start game button
+    startGameBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      game.start();
+    });
+
+    // Restart button
+    restartBtn.addEventListener('click', () => {
+      raceFinishScreen.style.display = 'none';
+      game.restart();
+    });
+
+    // Nostr integration
+    function updateStartScreen() {
+      if (typeof window.NostrGame === 'undefined') {
+        setTimeout(updateStartScreen, 100);
+        return;
+      }
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) {
+        startNpub.textContent = '...';
+        return;
+      }
+
+      const shortNpub = window.NostrGame.getShortNpub(player.npub);
+      startNpub.textContent = shortNpub;
+
+      if (window.NostrGame.hasNostrExtension() && !player.isExtension) {
+        startNip07Btn.style.display = 'block';
+      } else {
+        startNip07Btn.style.display = 'none';
+      }
+    }
+
+    startNip07Btn.addEventListener('click', async () => {
+      try {
+        startNip07Btn.disabled = true;
+        startNip07Btn.textContent = 'Connecting...';
+        await window.NostrGame.loginWithExtension();
+        updateStartScreen();
+      } catch (err) {
+        alert('Login failed: ' + err.message);
+      } finally {
+        startNip07Btn.disabled = false;
+        startNip07Btn.textContent = 'Login with NIP-07';
+      }
+    });
+
+    // Publish to Nostr
+    function resetPublishButton() {
+      publishNostrBtn.disabled = false;
+      publishNostrBtn.textContent = 'Share on Nostr';
+      publishStatus.textContent = '';
+    }
+
+    async function publishScore() {
+      if (typeof window.NostrGame === 'undefined') {
+        publishStatus.textContent = 'Nostr not ready';
+        return;
+      }
+
+      publishNostrBtn.disabled = true;
+      publishNostrBtn.textContent = 'Publishing...';
+      publishStatus.textContent = '';
+
+      try {
+        const gameUrl = window.location.href;
+        const raceTime = formatTime(game.getRaceTime());
+        const result = await window.NostrGame.publishRaceResult(
+          game.score,
+          raceTime,
+          gameUrl,
+          'Micro Racer'
+        );
+
+        const successCount = result.results.filter(r => r.success).length;
+        if (successCount > 0) {
+          publishStatus.innerHTML = `Published to ${successCount} relay(s)!`;
+          publishNostrBtn.textContent = 'Published!';
+        } else {
+          publishStatus.textContent = 'Failed to publish to relays';
+          publishNostrBtn.textContent = 'Share on Nostr';
+          publishNostrBtn.disabled = false;
+        }
+      } catch (err) {
+        publishStatus.textContent = 'Error: ' + err.message;
+        publishNostrBtn.textContent = 'Share on Nostr';
+        publishNostrBtn.disabled = false;
+      }
+    }
+
+    publishNostrBtn.addEventListener('click', publishScore);
+
+    // Menu functionality
+    const statusDot = document.querySelector('.status-dot');
+    const menuModal = document.getElementById('menuModal');
+    const menuContent = document.getElementById('menuContent');
+
+    function showMainMenu() {
+      menuContent.innerHTML = `
+        <h3>MENU</h3>
+        <button class="menu-item" id="menuShowKeys">Show Keys</button>
+        <button class="menu-item danger" id="menuNewPlayer">New Player</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+      menuModal.classList.add('active');
+
+      document.getElementById('menuShowKeys').onclick = showKeysMenu;
+      document.getElementById('menuNewPlayer').onclick = confirmNewPlayer;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    function showKeysMenu() {
+      if (typeof window.NostrGame === 'undefined') return;
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) return;
+
+      const npubDisplay = player.npub || 'Not available';
+      const hasNsec = !player.isExtension && player.nsec;
+
+      let nsecHtml;
+      if (player.isExtension) {
+        nsecHtml = '<span class="masked">Not available (using extension)</span>';
+      } else if (player.nsec) {
+        nsecHtml = `
+          <div class="key-row">
+            <div class="value">${player.nsec}</div>
+            <button class="copy-btn" id="copyNsec">COPY</button>
+          </div>
+        `;
+      } else {
+        nsecHtml = '<span class="masked">Not available</span>';
+      }
+
+      menuContent.innerHTML = `
+        <h3>YOUR KEYS</h3>
+        <div class="keys-display">
+          <div class="label">PUBLIC KEY (npub)</div>
+          <div class="key-row">
+            <div class="value">${npubDisplay}</div>
+            <button class="copy-btn" id="copyNpub">COPY</button>
+          </div>
+          <div class="label" style="margin-top: 10px;">PRIVATE KEY (nsec)</div>
+          ${hasNsec ? nsecHtml : `<div class="value">${nsecHtml}</div>`}
+        </div>
+        <button class="menu-item" id="menuBack">Back</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+
+      document.getElementById('copyNpub').onclick = () => copyToClipboard(player.npub, 'copyNpub');
+      if (hasNsec) {
+        document.getElementById('copyNsec').onclick = () => copyToClipboard(player.nsec, 'copyNsec');
+      }
+      document.getElementById('menuBack').onclick = showMainMenu;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    async function copyToClipboard(text, btnId) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById(btnId);
+        btn.textContent = 'COPIED';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'COPY';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        alert('Failed to copy');
+      }
+    }
+
+    function confirmNewPlayer() {
+      menuContent.innerHTML = `
+        <h3>NEW PLAYER</h3>
+        <p style="color: #ff6b6b; font-size: 11px; margin-bottom: 15px;">
+          This will generate a new identity. Your current keys will be lost forever!
+        </p>
+        <button class="menu-item danger" id="menuConfirmNew">Yes, Generate New Key</button>
+        <button class="menu-item" id="menuBack">Cancel</button>
+      `;
+
+      document.getElementById('menuConfirmNew').onclick = async () => {
+        if (typeof window.NostrGame !== 'undefined') {
+          await window.NostrGame.logout();
+          updateStartScreen();
+        }
+        closeMenu();
+      };
+      document.getElementById('menuBack').onclick = showMainMenu;
+    }
+
+    function closeMenu() {
+      menuModal.classList.remove('active');
+    }
+
+    statusDot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showMainMenu();
+    });
+
+    menuModal.addEventListener('click', (e) => {
+      if (e.target === menuModal) {
+        closeMenu();
+      }
+    });
+
+    // Responsive scaling
+    const gameContainer = document.querySelector('.game-container');
+
+    function resizeGame() {
+      const containerWidth = 480 + 30 + 4;
+      const containerHeight = 360 + 30 + 4 + 50;
+
+      const vv = window.visualViewport;
+      const availableWidth = (vv ? vv.width : window.innerWidth) - 20;
+      const availableHeight = (vv ? vv.height : window.innerHeight) - 20;
+
+      const scaleX = availableWidth / containerWidth;
+      const scaleY = availableHeight / containerHeight;
+      const scale = Math.min(scaleX, scaleY, 1);
+
+      gameContainer.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('orientationchange', () => setTimeout(resizeGame, 100));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeGame);
+    }
+    resizeGame();
+
+    // Initialize
+    setTimeout(updateStartScreen, 200);
+
+    // Initial render
+    game.render();
+  </script>
+</body>
+</html>

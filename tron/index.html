@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>TRON BIKE</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a1a">
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="33ce6c62-44d3-43d9-ae00-036f7cc76116"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+      user-select: none;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .game-container {
+      background-color: #0a1020;
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #0066cc;
+      box-shadow: 0 0 30px rgba(0, 200, 255, 0.3);
+      max-height: calc(100dvh - 20px);
+      max-width: calc(100vw - 20px);
+      display: flex;
+      flex-direction: column;
+      transform-origin: center center;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 0 5px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background-color: #00ffff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00ffff;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .status-dot:hover {
+      transform: scale(1.3);
+    }
+
+    .title {
+      color: #00ffff;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-shadow: 0 0 10px #00ffff;
+    }
+
+    .stats {
+      color: #00aacc;
+      font-size: 11px;
+    }
+
+    .stats span {
+      color: #00ffff;
+    }
+
+    #gameCanvas {
+      background-color: #0a0a1a;
+      border: 2px solid #0066cc;
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .controls-hint {
+      color: #00aacc;
+      font-size: 11px;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .controls-hint .key {
+      color: #00ffff;
+    }
+
+    /* Mobile controls */
+    .mobile-controls {
+      display: none;
+      margin-top: 20px;
+      gap: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .control-btn {
+      width: 65px;
+      height: 65px;
+      background-color: #0a1525;
+      color: #00ffff;
+      border: 2px solid #0066cc;
+      border-radius: 8px;
+      font-size: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      transition: all 0.1s;
+    }
+
+    .control-btn:active {
+      background-color: #0066cc;
+      border-color: #00ffff;
+      color: #ffffff;
+      box-shadow: 0 0 15px #00ffff;
+    }
+
+    .control-btn.spacer {
+      visibility: hidden;
+    }
+
+    /* Menu Modal */
+    .menu-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .menu-modal.active {
+      display: flex;
+    }
+
+    .menu-content {
+      background-color: #0a1020;
+      border: 2px solid #0066cc;
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 280px;
+      max-width: calc(100vw - 40px);
+      box-shadow: 0 0 30px rgba(0, 200, 255, 0.3);
+    }
+
+    .menu-content h3 {
+      color: #00ffff;
+      margin-bottom: 15px;
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px #00ffff;
+    }
+
+    .menu-item {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #0066cc;
+      color: #00ffff;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .menu-item:hover {
+      border-color: #00ffff;
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+
+    .menu-item.danger {
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+
+    .menu-item.danger:hover {
+      background-color: #ff4444;
+      color: #fff;
+    }
+
+    .menu-close {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #006699;
+      color: #006699;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .keys-display {
+      background-color: #050510;
+      border: 1px solid #0066cc;
+      border-radius: 5px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 10px;
+      word-break: break-all;
+    }
+
+    .keys-display .label {
+      color: #006699;
+      font-size: 9px;
+      margin-bottom: 4px;
+    }
+
+    .keys-display .value {
+      color: #9b59b6;
+      margin-bottom: 10px;
+    }
+
+    .keys-display .masked {
+      color: #006699;
+      font-style: italic;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #006699;
+      color: #006699;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 9px;
+      cursor: pointer;
+      margin-left: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .copy-btn:hover {
+      border-color: #9b59b6;
+      color: #9b59b6;
+    }
+
+    .copy-btn.copied {
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    .key-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .key-row .value {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    /* Welcome Screen */
+    .welcome-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, #0a0a1a 0%, #0a1525 50%, #0a0a1a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+
+    .welcome-content {
+      text-align: center;
+      padding: 40px;
+      max-width: 320px;
+    }
+
+    .welcome-logo {
+      margin-bottom: 20px;
+    }
+
+    .welcome-logo h1 {
+      color: #00ffff;
+      font-size: 36px;
+      letter-spacing: 6px;
+      text-shadow: 0 0 30px #00ffff, 0 0 60px #00ffff;
+      margin-bottom: 5px;
+    }
+
+    .welcome-logo .tagline {
+      color: #0088aa;
+      font-size: 12px;
+      letter-spacing: 4px;
+    }
+
+    .welcome-divider {
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #0066cc, transparent);
+      margin: 30px 0;
+    }
+
+    .welcome-signin {
+      margin-bottom: 30px;
+    }
+
+    .welcome-signin p {
+      color: #006699;
+      font-size: 11px;
+      margin-bottom: 15px;
+    }
+
+    .btn-extension {
+      display: block;
+      width: 100%;
+      background: transparent;
+      color: #9b59b6;
+      border: 2px solid #9b59b6;
+      padding: 14px 30px;
+      font-size: 13px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+
+    .btn-extension:hover:not(:disabled) {
+      background-color: #9b59b6;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+    }
+
+    .btn-extension:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-extension.connected {
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    .btn-guest {
+      display: block;
+      width: 100%;
+      background: transparent;
+      color: #00ffff;
+      border: 2px solid #00ffff;
+      padding: 14px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+    }
+
+    .btn-guest:hover {
+      background-color: #00ffff;
+      color: #0a0a1a;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+
+    .welcome-player {
+      margin-top: 20px;
+      padding: 15px;
+      background: rgba(0, 102, 204, 0.1);
+      border: 1px solid #0066cc;
+      border-radius: 5px;
+    }
+
+    .welcome-player .label {
+      color: #006699;
+      font-size: 10px;
+      margin-bottom: 5px;
+    }
+
+    .welcome-player .npub {
+      color: #9b59b6;
+      font-size: 11px;
+      font-family: monospace;
+      word-break: break-all;
+    }
+
+    .no-extension {
+      color: #666;
+      font-size: 10px;
+      margin-bottom: 15px;
+      font-style: italic;
+    }
+
+    /* Start Screen */
+    .start-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 16, 32, 0.98);
+      border: 2px solid #0066cc;
+      color: #00ffff;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 100;
+      width: 300px;
+      max-width: calc(100vw - 40px);
+      box-shadow: 0 0 40px rgba(0, 200, 255, 0.4);
+      display: none;
+    }
+
+    .start-screen h1 {
+      color: #00ffff;
+      font-size: 24px;
+      margin-bottom: 8px;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px #00ffff;
+    }
+
+    .start-screen .subtitle {
+      color: #0088aa;
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    .start-screen .level-info {
+      background: rgba(0, 102, 204, 0.2);
+      border: 1px solid #0066cc;
+      border-radius: 5px;
+      padding: 12px;
+      margin-bottom: 20px;
+    }
+
+    .start-screen .level-info .level-number {
+      color: #00ff88;
+      font-size: 28px;
+      font-weight: bold;
+      text-shadow: 0 0 15px #00ff88;
+    }
+
+    .start-screen .level-info .level-name {
+      color: #00aacc;
+      font-size: 11px;
+      margin-top: 5px;
+    }
+
+    .start-screen .level-info .level-desc {
+      color: #006699;
+      font-size: 10px;
+      margin-top: 8px;
+    }
+
+    .start-screen button {
+      display: block;
+      width: 100%;
+      background-color: transparent;
+      color: #00ffff;
+      border: 2px solid #00ffff;
+      padding: 12px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+
+    .start-screen button:hover {
+      background-color: #00ffff;
+      color: #0a0a1a;
+      box-shadow: 0 0 20px #00ffff;
+    }
+
+    .start-screen .player-info {
+      margin-top: 15px;
+      font-size: 11px;
+      color: #006699;
+    }
+
+    .start-screen .player-info .npub {
+      color: #9b59b6;
+      font-family: monospace;
+    }
+
+    /* Game Over / Victory Overlay */
+    .game-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 16, 32, 0.98);
+      border: 2px solid #ff4444;
+      color: #ff4444;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 30px rgba(255, 68, 68, 0.4);
+      z-index: 100;
+      width: 300px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .game-overlay.victory {
+      border-color: #00ff88;
+      color: #00ff88;
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+    }
+
+    .game-overlay.levelup {
+      border-color: #f39c12;
+      color: #f39c12;
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.4);
+    }
+
+    .game-overlay h2 {
+      margin-bottom: 10px;
+      letter-spacing: 3px;
+      text-shadow: 0 0 15px currentColor;
+    }
+
+    .game-overlay p {
+      color: #00aacc;
+      margin-bottom: 15px;
+    }
+
+    .game-overlay .score-display {
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .game-overlay .score-display .wins {
+      color: #00ffff;
+    }
+
+    .game-overlay .score-display .losses {
+      color: #ff6600;
+    }
+
+    .game-overlay .level-display {
+      font-size: 12px;
+      margin-bottom: 20px;
+      color: #00ff88;
+    }
+
+    .game-overlay button {
+      background-color: transparent;
+      color: #ff4444;
+      border: 2px solid #ff4444;
+      padding: 10px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .game-overlay button:hover {
+      background-color: #ff4444;
+      color: #0a0a1a;
+      box-shadow: 0 0 15px #ff4444;
+    }
+
+    .game-overlay.victory button,
+    .game-overlay.levelup button {
+      color: #00ff88;
+      border-color: #00ff88;
+    }
+
+    .game-overlay.victory button:hover,
+    .game-overlay.levelup button:hover {
+      background-color: #00ff88;
+      color: #0a0a1a;
+      box-shadow: 0 0 15px #00ff88;
+    }
+
+    .game-overlay .btn-nostr {
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .game-overlay .btn-nostr:hover {
+      background-color: #9b59b6;
+      color: #fff;
+      box-shadow: 0 0 15px #9b59b6;
+    }
+
+    .game-overlay .btn-nostr:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .publish-status {
+      font-size: 11px;
+      margin-top: 8px;
+      color: #00aacc;
+    }
+
+    /* Swipe indicator */
+    .swipe-hint {
+      color: #006699;
+      font-size: 10px;
+      margin-top: 10px;
+      text-align: center;
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .controls-hint {
+        display: none;
+      }
+    }
+
+    @media (pointer: coarse) {
+      .mobile-controls {
+        display: flex;
+        flex-direction: column;
+      }
+      .swipe-hint {
+        display: block;
+      }
+    }
+
+    @media (max-height: 700px) and (pointer: coarse) {
+      .mobile-controls {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <div class="status-dot"></div>
+      <div class="title">TRON BIKE</div>
+      <div class="stats">LVL <span id="levelDisplay">1</span> | W: <span id="winsDisplay">0</span></div>
+    </div>
+    <canvas id="gameCanvas" width="320" height="400"></canvas>
+    <div class="controls-hint">
+      Turn: <span class="key">Arrow Keys</span> or <span class="key">WASD</span>
+    </div>
+    <div class="swipe-hint">Swipe to turn</div>
+  </div>
+
+  <div class="mobile-controls">
+    <div class="control-row">
+      <button class="control-btn spacer"></button>
+      <button class="control-btn" id="btnUp">&#9650;</button>
+      <button class="control-btn spacer"></button>
+    </div>
+    <div class="control-row">
+      <button class="control-btn" id="btnLeft">&#9664;</button>
+      <button class="control-btn" id="btnDown">&#9660;</button>
+      <button class="control-btn" id="btnRight">&#9654;</button>
+    </div>
+  </div>
+
+  <!-- Menu Modal -->
+  <div class="menu-modal" id="menuModal">
+    <div class="menu-content" id="menuContent">
+      <!-- Content will be set by JS -->
+    </div>
+  </div>
+
+  <!-- Welcome Screen -->
+  <div class="welcome-screen" id="welcomeScreen">
+    <div class="welcome-content">
+      <div class="welcome-logo">
+        <h1>TRON BIKE</h1>
+        <div class="tagline">LIGHT CYCLE BATTLE</div>
+      </div>
+
+      <div class="welcome-divider"></div>
+
+      <div class="welcome-signin">
+        <p>Connect your Nostr identity to save progress</p>
+        <div id="noExtensionMsg" class="no-extension" style="display:none;">
+          No Nostr extension detected
+        </div>
+        <button class="btn-extension" id="welcomeNip07Btn">
+          Sign in with Extension
+        </button>
+        <button class="btn-guest" id="welcomeGuestBtn">
+          Play as Guest
+        </button>
+      </div>
+
+      <div class="welcome-player" id="welcomePlayerInfo" style="display:none;">
+        <div class="label">SIGNED IN AS</div>
+        <div class="npub" id="welcomeNpub">...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="start-screen" id="startScreen">
+    <h1>TRON BIKE</h1>
+    <div class="subtitle">Light Cycle Battle</div>
+    <div class="level-info">
+      <div class="level-number">LEVEL <span id="startLevelNum">1</span></div>
+      <div class="level-name" id="startLevelName">TRAINING GRID</div>
+      <div class="level-desc" id="startLevelDesc">Basic AI opponent</div>
+    </div>
+    <button id="startGameBtn">ENTER THE GRID</button>
+    <div class="player-info">
+      Playing as <span class="npub" id="startNpub">...</span>
+    </div>
+  </div>
+
+  <!-- Game Over Overlay -->
+  <div class="game-overlay" id="gameOverScreen">
+    <h2>DEREZZ</h2>
+    <p>You crashed!</p>
+    <div class="score-display">
+      <span class="wins">Wins: <span id="gameOverWins">0</span></span> |
+      <span class="losses">Losses: <span id="gameOverLosses">0</span></span>
+    </div>
+    <div class="level-display">Level <span id="gameOverLevel">1</span></div>
+    <button id="restartBtn">RACE AGAIN</button>
+    <button class="btn-nostr" id="publishNostrBtn">Share on Nostr</button>
+    <div class="publish-status" id="publishStatus"></div>
+  </div>
+
+  <!-- Victory Overlay -->
+  <div class="game-overlay victory" id="victoryScreen">
+    <h2>VICTORY</h2>
+    <p>Opponent derezzed!</p>
+    <div class="score-display">
+      <span class="wins">Wins: <span id="victoryWins">0</span></span> |
+      <span class="losses">Losses: <span id="victoryLosses">0</span></span>
+    </div>
+    <div class="level-display">Level <span id="victoryLevel">1</span> - <span id="victoryStreak">0</span>/3 to next level</div>
+    <button id="playAgainBtn">RACE AGAIN</button>
+    <button class="btn-nostr" id="publishVictoryBtn">Share on Nostr</button>
+    <div class="publish-status" id="victoryPublishStatus"></div>
+  </div>
+
+  <!-- Level Up Overlay -->
+  <div class="game-overlay levelup" id="levelUpScreen">
+    <h2>LEVEL UP!</h2>
+    <p>Advancing to the next grid</p>
+    <div class="level-display" style="font-size: 24px;">Level <span id="newLevelNum">2</span></div>
+    <div class="level-display" id="newLevelName">SECTOR ALPHA</div>
+    <button id="continueBtn">CONTINUE</button>
+    <button class="btn-nostr" id="publishLevelBtn">Share on Nostr</button>
+    <div class="publish-status" id="levelPublishStatus"></div>
+  </div>
+
+  <script src="nostr.js"></script>
+  <script type="module">
+    import { Game, GameState, Direction, LEVELS } from './game.js?v=2';
+
+    const canvas = document.getElementById('gameCanvas');
+    const game = new Game(canvas);
+
+    // UI Elements
+    const winsDisplay = document.getElementById('winsDisplay');
+    const levelDisplay = document.getElementById('levelDisplay');
+    const welcomeScreen = document.getElementById('welcomeScreen');
+    const welcomeNip07Btn = document.getElementById('welcomeNip07Btn');
+    const welcomeGuestBtn = document.getElementById('welcomeGuestBtn');
+    const welcomePlayerInfo = document.getElementById('welcomePlayerInfo');
+    const welcomeNpub = document.getElementById('welcomeNpub');
+    const noExtensionMsg = document.getElementById('noExtensionMsg');
+    const startScreen = document.getElementById('startScreen');
+    const startGameBtn = document.getElementById('startGameBtn');
+    const startNpub = document.getElementById('startNpub');
+    const startLevelNum = document.getElementById('startLevelNum');
+    const startLevelName = document.getElementById('startLevelName');
+    const startLevelDesc = document.getElementById('startLevelDesc');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const gameOverWins = document.getElementById('gameOverWins');
+    const gameOverLosses = document.getElementById('gameOverLosses');
+    const gameOverLevel = document.getElementById('gameOverLevel');
+    const restartBtn = document.getElementById('restartBtn');
+    const publishNostrBtn = document.getElementById('publishNostrBtn');
+    const publishStatus = document.getElementById('publishStatus');
+    const victoryScreen = document.getElementById('victoryScreen');
+    const victoryWins = document.getElementById('victoryWins');
+    const victoryLosses = document.getElementById('victoryLosses');
+    const victoryLevel = document.getElementById('victoryLevel');
+    const victoryStreak = document.getElementById('victoryStreak');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const publishVictoryBtn = document.getElementById('publishVictoryBtn');
+    const victoryPublishStatus = document.getElementById('victoryPublishStatus');
+    const levelUpScreen = document.getElementById('levelUpScreen');
+    const newLevelNum = document.getElementById('newLevelNum');
+    const newLevelName = document.getElementById('newLevelName');
+    const continueBtn = document.getElementById('continueBtn');
+    const publishLevelBtn = document.getElementById('publishLevelBtn');
+    const levelPublishStatus = document.getElementById('levelPublishStatus');
+
+    // Update level info on start screen
+    function updateLevelInfo() {
+      const level = game.level;
+      const levelData = LEVELS[level - 1] || LEVELS[LEVELS.length - 1];
+      startLevelNum.textContent = level;
+      startLevelName.textContent = levelData.name;
+      startLevelDesc.textContent = levelData.description;
+      levelDisplay.textContent = level;
+    }
+
+    // State change callback
+    game.onStateChange = (newState, oldState, data) => {
+      // Hide all overlays first
+      startScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      victoryScreen.style.display = 'none';
+      levelUpScreen.style.display = 'none';
+
+      switch (newState) {
+        case GameState.START_SCREEN:
+          updateLevelInfo();
+          startScreen.style.display = 'block';
+          break;
+        case GameState.GAME_OVER:
+          gameOverWins.textContent = game.wins;
+          gameOverLosses.textContent = game.losses;
+          gameOverLevel.textContent = game.level;
+          winsDisplay.textContent = game.wins;
+          levelDisplay.textContent = game.level;
+          gameOverScreen.style.display = 'block';
+          resetPublishButton(publishNostrBtn, publishStatus);
+          break;
+        case GameState.VICTORY:
+          victoryWins.textContent = game.wins;
+          victoryLosses.textContent = game.losses;
+          victoryLevel.textContent = game.level;
+          victoryStreak.textContent = game.winStreak;
+          winsDisplay.textContent = game.wins;
+          levelDisplay.textContent = game.level;
+          victoryScreen.style.display = 'block';
+          resetPublishButton(publishVictoryBtn, victoryPublishStatus);
+          break;
+        case GameState.LEVEL_UP:
+          const levelData = LEVELS[game.level - 1] || LEVELS[LEVELS.length - 1];
+          newLevelNum.textContent = game.level;
+          newLevelName.textContent = levelData.name;
+          levelDisplay.textContent = game.level;
+          levelUpScreen.style.display = 'block';
+          resetPublishButton(publishLevelBtn, levelPublishStatus);
+          break;
+      }
+    };
+
+    // Keyboard input
+    document.addEventListener('keydown', (e) => {
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          e.preventDefault();
+          game.setDirection(Direction.UP);
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          e.preventDefault();
+          game.setDirection(Direction.DOWN);
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          game.setDirection(Direction.LEFT);
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          e.preventDefault();
+          game.setDirection(Direction.RIGHT);
+          break;
+      }
+    });
+
+    // Mobile button controls
+    const btnUp = document.getElementById('btnUp');
+    const btnDown = document.getElementById('btnDown');
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+
+    function setupDirectionButton(btn, direction) {
+      const handler = (e) => {
+        e.preventDefault();
+        game.setDirection(direction);
+      };
+      btn.addEventListener('touchstart', handler, { passive: false });
+      btn.addEventListener('mousedown', handler);
+    }
+
+    setupDirectionButton(btnUp, Direction.UP);
+    setupDirectionButton(btnDown, Direction.DOWN);
+    setupDirectionButton(btnLeft, Direction.LEFT);
+    setupDirectionButton(btnRight, Direction.RIGHT);
+
+    // Swipe controls
+    let touchStartX = 0;
+    let touchStartY = 0;
+    const SWIPE_THRESHOLD = 30;
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+          game.setDirection(deltaX > 0 ? Direction.RIGHT : Direction.LEFT);
+        }
+      } else {
+        if (Math.abs(deltaY) > SWIPE_THRESHOLD) {
+          game.setDirection(deltaY > 0 ? Direction.DOWN : Direction.UP);
+        }
+      }
+    }, { passive: false });
+
+    document.body.addEventListener('touchstart', (e) => {
+      if (e.target === canvas) return;
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+    }, { passive: true });
+
+    document.body.addEventListener('touchend', (e) => {
+      if (e.target === canvas) return;
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (Math.abs(deltaX) > SWIPE_THRESHOLD) {
+          game.setDirection(deltaX > 0 ? Direction.RIGHT : Direction.LEFT);
+        }
+      } else {
+        if (Math.abs(deltaY) > SWIPE_THRESHOLD) {
+          game.setDirection(deltaY > 0 ? Direction.DOWN : Direction.UP);
+        }
+      }
+    }, { passive: true });
+
+    document.body.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    // Welcome screen logic
+    function initWelcomeScreen() {
+      if (typeof window.NostrGame === 'undefined') {
+        setTimeout(initWelcomeScreen, 100);
+        return;
+      }
+
+      const hasExtension = window.NostrGame.hasNostrExtension();
+
+      if (!hasExtension) {
+        noExtensionMsg.style.display = 'block';
+        welcomeNip07Btn.style.display = 'none';
+      }
+
+      const player = window.NostrGame.getPlayer();
+      if (player) {
+        showPlayerInfo(player);
+      }
+    }
+
+    function showPlayerInfo(player) {
+      const shortNpub = window.NostrGame.getShortNpub(player.npub);
+      welcomeNpub.textContent = player.npub;
+      welcomePlayerInfo.style.display = 'block';
+
+      if (player.isExtension) {
+        welcomeNip07Btn.textContent = 'Connected!';
+        welcomeNip07Btn.classList.add('connected');
+        welcomeNip07Btn.disabled = true;
+      }
+    }
+
+    welcomeNip07Btn.addEventListener('click', async () => {
+      try {
+        welcomeNip07Btn.disabled = true;
+        welcomeNip07Btn.textContent = 'Connecting...';
+        const player = await window.NostrGame.loginWithExtension();
+        showPlayerInfo(player);
+        welcomeNip07Btn.textContent = 'Connected!';
+        welcomeNip07Btn.classList.add('connected');
+        // Auto-advance to start screen after brief delay
+        setTimeout(() => {
+          welcomeScreen.style.display = 'none';
+          updateStartScreenPlayer();
+          updateLevelInfo();
+          startScreen.style.display = 'block';
+        }, 800);
+      } catch (err) {
+        alert('Login failed: ' + err.message);
+        welcomeNip07Btn.disabled = false;
+        welcomeNip07Btn.textContent = 'Sign in with Extension';
+      }
+    });
+
+    welcomeGuestBtn.addEventListener('click', () => {
+      welcomeScreen.style.display = 'none';
+      updateStartScreenPlayer();
+      updateLevelInfo();
+      startScreen.style.display = 'block';
+    });
+
+    function updateStartScreenPlayer() {
+      if (typeof window.NostrGame === 'undefined') return;
+
+      const player = window.NostrGame.getPlayer();
+      if (player) {
+        startNpub.textContent = window.NostrGame.getShortNpub(player.npub);
+      }
+    }
+
+    // Start game button
+    startGameBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      game.start();
+    });
+
+    // Restart buttons
+    restartBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      game.restart();
+    });
+
+    playAgainBtn.addEventListener('click', () => {
+      victoryScreen.style.display = 'none';
+      game.restart();
+    });
+
+    continueBtn.addEventListener('click', () => {
+      levelUpScreen.style.display = 'none';
+      game.restart();
+    });
+
+    // Publish to Nostr
+    function resetPublishButton(btn, statusEl) {
+      btn.disabled = false;
+      btn.textContent = 'Share on Nostr';
+      statusEl.textContent = '';
+    }
+
+    async function publishScore(btn, statusEl, message) {
+      if (typeof window.NostrGame === 'undefined') {
+        statusEl.textContent = 'Nostr not ready';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Publishing...';
+      statusEl.textContent = '';
+
+      try {
+        const gameUrl = 'https://tronbike.otherstuff.ai';
+        const result = await window.NostrGame.publishGameResult(
+          game.wins,
+          gameUrl,
+          'Tron Bike',
+          message
+        );
+
+        const successCount = result.results.filter(r => r.success).length;
+        if (successCount > 0) {
+          statusEl.innerHTML = `Published to ${successCount} relay(s)!`;
+          btn.textContent = 'Published!';
+        } else {
+          statusEl.textContent = 'Failed to publish to relays';
+          btn.textContent = 'Share on Nostr';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        btn.textContent = 'Share on Nostr';
+        btn.disabled = false;
+      }
+    }
+
+    publishNostrBtn.addEventListener('click', () =>
+      publishScore(publishNostrBtn, publishStatus, false));
+    publishVictoryBtn.addEventListener('click', () =>
+      publishScore(publishVictoryBtn, victoryPublishStatus, true));
+    publishLevelBtn.addEventListener('click', () =>
+      publishScore(publishLevelBtn, levelPublishStatus, `levelup:${game.level}`));
+
+    // Menu functionality
+    const statusDot = document.querySelector('.status-dot');
+    const menuModal = document.getElementById('menuModal');
+    const menuContent = document.getElementById('menuContent');
+
+    function showMainMenu() {
+      menuContent.innerHTML = `
+        <h3>MENU</h3>
+        <button class="menu-item" id="menuShowKeys">Show Keys</button>
+        <button class="menu-item" id="menuResetLevel">Reset to Level 1</button>
+        <button class="menu-item danger" id="menuNewPlayer">New Player</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+      menuModal.classList.add('active');
+
+      document.getElementById('menuShowKeys').onclick = showKeysMenu;
+      document.getElementById('menuResetLevel').onclick = confirmResetLevel;
+      document.getElementById('menuNewPlayer').onclick = confirmNewPlayer;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    function showKeysMenu() {
+      if (typeof window.NostrGame === 'undefined') return;
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) return;
+
+      const npubDisplay = player.npub || 'Not available';
+      const hasNsec = !player.isExtension && player.nsec;
+
+      let nsecHtml;
+      if (player.isExtension) {
+        nsecHtml = '<span class="masked">Not available (using extension)</span>';
+      } else if (player.nsec) {
+        nsecHtml = `
+          <div class="key-row">
+            <div class="value">${player.nsec}</div>
+            <button class="copy-btn" id="copyNsec">COPY</button>
+          </div>
+        `;
+      } else {
+        nsecHtml = '<span class="masked">Not available</span>';
+      }
+
+      menuContent.innerHTML = `
+        <h3>YOUR KEYS</h3>
+        <div class="keys-display">
+          <div class="label">PUBLIC KEY (npub)</div>
+          <div class="key-row">
+            <div class="value">${npubDisplay}</div>
+            <button class="copy-btn" id="copyNpub">COPY</button>
+          </div>
+          <div class="label" style="margin-top: 10px;">PRIVATE KEY (nsec)</div>
+          ${hasNsec ? nsecHtml : `<div class="value">${nsecHtml}</div>`}
+        </div>
+        <button class="menu-item" id="menuBack">Back</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+
+      document.getElementById('copyNpub').onclick = () => copyToClipboard(player.npub, 'copyNpub');
+      if (hasNsec) {
+        document.getElementById('copyNsec').onclick = () => copyToClipboard(player.nsec, 'copyNsec');
+      }
+      document.getElementById('menuBack').onclick = showMainMenu;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    async function copyToClipboard(text, btnId) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById(btnId);
+        btn.textContent = 'COPIED';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'COPY';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        alert('Failed to copy');
+      }
+    }
+
+    function confirmResetLevel() {
+      menuContent.innerHTML = `
+        <h3>RESET LEVEL</h3>
+        <p style="color: #f39c12; font-size: 11px; margin-bottom: 15px;">
+          This will reset your progress to Level 1. Your win/loss record will be kept.
+        </p>
+        <button class="menu-item" style="border-color: #f39c12; color: #f39c12;" id="menuConfirmReset">Yes, Reset Level</button>
+        <button class="menu-item" id="menuBack">Cancel</button>
+      `;
+
+      document.getElementById('menuConfirmReset').onclick = () => {
+        game.resetLevel();
+        updateLevelInfo();
+        levelDisplay.textContent = game.level;
+        closeMenu();
+      };
+      document.getElementById('menuBack').onclick = showMainMenu;
+    }
+
+    function confirmNewPlayer() {
+      menuContent.innerHTML = `
+        <h3>NEW PLAYER</h3>
+        <p style="color: #ff4444; font-size: 11px; margin-bottom: 15px;">
+          This will generate a new identity. Your current keys will be lost forever!
+        </p>
+        <button class="menu-item danger" id="menuConfirmNew">Yes, Generate New Key</button>
+        <button class="menu-item" id="menuBack">Cancel</button>
+      `;
+
+      document.getElementById('menuConfirmNew').onclick = async () => {
+        if (typeof window.NostrGame !== 'undefined') {
+          await window.NostrGame.logout();
+          updateStartScreenPlayer();
+        }
+        closeMenu();
+      };
+      document.getElementById('menuBack').onclick = showMainMenu;
+    }
+
+    function closeMenu() {
+      menuModal.classList.remove('active');
+    }
+
+    statusDot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showMainMenu();
+    });
+
+    menuModal.addEventListener('click', (e) => {
+      if (e.target === menuModal) {
+        closeMenu();
+      }
+    });
+
+    // Responsive scaling
+    const gameContainer = document.querySelector('.game-container');
+
+    function resizeGame() {
+      const containerWidth = 320 + 30 + 4;
+      const containerHeight = 400 + 30 + 4 + 50;
+
+      const vv = window.visualViewport;
+      const availableWidth = (vv ? vv.width : window.innerWidth) - 20;
+      const availableHeight = (vv ? vv.height : window.innerHeight) - 20;
+
+      const scaleX = availableWidth / containerWidth;
+      const scaleY = availableHeight / containerHeight;
+      const scale = Math.min(scaleX, scaleY, 1);
+
+      gameContainer.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('orientationchange', () => setTimeout(resizeGame, 100));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeGame);
+    }
+    resizeGame();
+
+    // Initialize
+    setTimeout(initWelcomeScreen, 200);
+
+    // Initial render
+    game.render();
+  </script>
+</body>
+</html>

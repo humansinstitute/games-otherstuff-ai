@@ -1,0 +1,16 @@
+{
+  "name": "Bull Run",
+  "short_name": "Bull Run",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0c0f1a",
+  "theme_color": "#0c0f1a",
+  "icons": [
+    {
+      "src": "assets/icon-bullrun.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

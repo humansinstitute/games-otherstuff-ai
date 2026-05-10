@@ -1,0 +1,276 @@
+Absolutely. Below is a **complete, clean, developer-ready game specification** you can hand directly to a developer. It assumes:
+
+* **100% client-side**
+* **Daily shared starting grid**
+* **Casual play (no anti-cheat, no server validation)**
+* **Randomness after start is fine**
+
+---
+
+# Game Specification
+
+## Working Title: **Jumble Word 5×5**
+
+---
+
+## 1. Overview
+
+**Jumble Word 5×5** is a single-player word-finding game played on a 5×5 grid of letters.
+Players discover words by selecting adjacent letters. Found words remove letters from the grid, causing new letters to refill. The player may reshuffle the grid up to **four times** using a *jumble* mechanic.
+
+Each calendar day has a **shared starting grid** for all players. After the game begins, randomness is local and playthroughs diverge naturally.
+
+The game ends when the player can no longer find words and has used all jumbles.
+
+---
+
+## 2. Core Game Rules
+
+### Grid
+
+* Grid size: **5 × 5**
+* Total tiles: **25**
+* Each tile contains:
+
+  * One uppercase letter (`A–Z`)
+  * A fixed position (row, column)
+
+### Adjacency Rules
+
+* Words are formed by selecting tiles that are:
+
+  * Horizontally adjacent
+  * Vertically adjacent
+  * Diagonally adjacent
+* A tile may be used **only once per word**
+
+---
+
+## 3. Words
+
+### Valid Word Criteria
+
+* Minimum length: **3 letters**
+* Must exist in the dictionary
+* Case-insensitive
+* No reuse of tiles within the same word
+
+### Word Submission Flow
+
+1. Player selects a sequence of adjacent letters
+2. Word is validated
+3. If valid:
+
+   * Score is awarded
+   * Letters used are removed
+   * Grid refills
+4. If invalid:
+
+   * Selection is rejected
+   * Grid remains unchanged
+
+---
+
+## 4. Scoring
+
+### Letter Value
+
+* Each letter is worth **21 points**
+
+### Word Score Formula
+
+```
+score = word_length × 21
+```
+
+### Examples
+
+| Word     | Length | Score |
+| -------- | ------ | ----- |
+| CAT      | 3      | 63    |
+| PLANT    | 5      | 105   |
+| DISCOVER | 8      | 168   |
+
+### Total Score
+
+* Cumulative sum of all word scores
+* No penalties
+* No bonuses or multipliers in v1
+
+---
+
+## 5. Grid Refill Mechanics
+
+After a valid word is removed:
+
+1. All tiles used in the word are cleared
+2. Letters above fall downward to fill gaps
+3. New random letters are generated at the top
+4. Grid always returns to **25 letters**
+
+* Refill is immediate
+* Refill randomness uses `Math.random()`
+
+---
+
+## 6. Jumble Mechanic
+
+### Definition
+
+A **jumble** randomly rearranges all letters currently in the grid.
+
+### Rules
+
+* Player starts with **4 jumbles**
+* A jumble:
+
+  * Does not change which letters exist
+  * Only shuffles their positions
+* Jumbles can be used at any time
+* Jumbles do **not** affect score
+
+### Notes
+
+* The grid may contain zero valid words after a jumble
+* This is an acceptable state
+* Player may continue until jumbles are exhausted
+
+---
+
+## 7. Daily Starting Grid
+
+### Purpose
+
+All players receive the **same starting grid each day** to create a shared daily experience.
+
+### Grid Catalog
+
+* The game ships with **N = 1000** pre-generated starting grids
+* Each grid contains:
+
+```ts
+{
+  id: string,
+  letters: string // 25 characters, row-major order
+}
+```
+
+### Daily Grid Selection (Client-Side)
+
+1. Compute a **day key**:
+
+   ```
+   YYYY-MM-DD
+   ```
+
+   using **UTC** (recommended) or a chosen fixed timezone
+
+2. Compute an index:
+
+   ```
+   index = SHA256(dayKey + "|" + salt) mod N
+   ```
+
+3. Select `grids[index]` as the starting grid
+
+* `salt` is a fixed string (e.g. `"jumbleword-v1"`)
+* Entire process is client-side
+* No server required
+
+---
+
+## 8. Randomness After Start
+
+* Only the **starting grid** is deterministic
+* After the game begins:
+
+  * Refill letters use `Math.random()`
+  * Jumbles use `Math.random()`
+* Different playthroughs will diverge naturally
+* This is intentional and acceptable
+
+---
+
+## 9. Dictionary
+
+### Requirements
+
+* English dictionary
+* Fast lookup (Set or Trie)
+* Normalized to uppercase
+
+### Dictionary Rules
+
+* Words shorter than 3 letters are invalid
+* Plurals, proper nouns, etc. are dictionary-dependent
+* No word reuse restrictions in v1
+
+---
+
+## 10. Game End Conditions
+
+The game ends when **all three** conditions are met:
+
+1. No valid words remain on the grid
+2. All **4 jumbles** have been used
+3. Player clicks **Complete**
+
+* The game does **not** auto-end
+* Player explicitly finalizes their run
+
+---
+
+## 11. State to Track
+
+The client must track:
+
+* Current grid letters and positions
+* Current score
+* Jumbles remaining
+* Whether valid words exist
+* Game completed flag
+
+Optional:
+
+* Word history
+* Word count
+* Longest word
+
+---
+
+## 12. Non-Goals (Out of Scope for v1)
+
+* Multiplayer
+* Timers
+* Hints
+* Leaderboards
+* Anti-cheat
+* Account systems
+* Word rarity bonuses
+
+---
+
+## 13. One-Line Pitch
+
+> A daily 5×5 word-finding game where letters disappear and refill, players can reshuffle the board four times, and every word scores a clean 21 points per letter.
+
+---
+
+## 14. Developer Notes
+
+* Prioritize **clarity and responsiveness**
+* Grid logic should be fully deterministic given current state
+* Dictionary checks must be fast
+* Avoid deadlocks: zero-word grids are allowed until jumbles are exhausted
+
+---
+
+If you want next steps, I can:
+
+* Produce **acceptance criteria**
+* Design **grid generation rules** for the 1000 grids
+* Write **data schemas**
+* Draft **UX flow / interactions**
+* Provide a **reference implementation skeleton (JS/TS)**
+
+Just tell me what you want next.

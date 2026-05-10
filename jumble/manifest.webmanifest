@@ -1,0 +1,17 @@
+{
+  "name": "JUMBLE",
+  "short_name": "JUMBLE",
+  "description": "A daily 5x5 word-finding game",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a5590",
+  "theme_color": "#1a5590",
+  "icons": [
+    {
+      "src": "assets/icon-jumble.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

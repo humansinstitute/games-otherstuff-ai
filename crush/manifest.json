@@ -1,0 +1,17 @@
+{
+  "name": "Crush",
+  "short_name": "Crush",
+  "description": "Match 3 candies to score!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a1a",
+  "theme_color": "#0d1525",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

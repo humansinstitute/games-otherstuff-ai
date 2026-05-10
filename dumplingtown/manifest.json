@@ -1,0 +1,16 @@
+{
+    "name": "Dumpling Town",
+    "short_name": "DumplingTown",
+    "description": "A cozy dumpling adventure game",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffb7c5",
+    "theme_color": "#ffb7c5",
+    "icons": [
+        {
+            "src": "icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

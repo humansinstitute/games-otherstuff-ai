@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lemmings Game</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Space+Mono:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="1200" height="700"></canvas>
+    </div>
+
+    <!-- Nostr Player Panel -->
+    <div id="nostrPanel" class="nostr-panel">
+        <div class="nostr-player-info">
+            <span class="nostr-label">Player:</span>
+            <span id="nostrNpub" class="nostr-npub">Loading...</span>
+        </div>
+        <div class="nostr-buttons">
+            <button id="nostrExtensionBtn" class="nostr-btn nostr-btn--extension" style="display: none;">
+                Login with Extension
+            </button>
+            <button id="nostrLogoutBtn" class="nostr-btn nostr-btn--logout" style="display: none;">
+                Logout
+            </button>
+        </div>
+    </div>
+
+    <!-- Nostr Publish Overlay (shown after level ends) -->
+    <div id="nostrPublishOverlay" class="nostr-publish-overlay" style="display: none;">
+        <div class="nostr-publish-panel">
+            <h2 class="nostr-publish-title">Share on Nostr</h2>
+            <div id="nostrPublishPreview" class="nostr-publish-preview"></div>
+            <div class="nostr-publish-buttons">
+                <button id="nostrPublishBtn" class="nostr-btn nostr-btn--publish">
+                    Publish to Nostr
+                </button>
+                <button id="nostrCancelBtn" class="nostr-btn nostr-btn--cancel">
+                    Cancel
+                </button>
+            </div>
+            <div id="nostrPublishStatus" class="nostr-publish-status"></div>
+        </div>
+    </div>
+
+    <div id="mobileOrientationOverlay" class="mobile-orientation-overlay" role="alertdialog" aria-hidden="true">
+        <div class="mobile-orientation-overlay__panel">
+            <p class="mobile-orientation-overlay__eyebrow">Rotate Device</p>
+            <h1 class="mobile-orientation-overlay__title">Landscape required</h1>
+            <p class="mobile-orientation-overlay__message">
+                Turn your phone or tablet sideways so the full battlefield fits on screen.
+            </p>
+            <p class="mobile-orientation-overlay__hint">
+                Once you're in landscape, tap anywhere to start.
+            </p>
+        </div>
+    </div>
+
+    <!-- Nostr Module (load first) -->
+    <script src="js/nostr.js" type="module"></script>
+    <script src="js/nostrUI.js" type="module"></script>
+
+    <!-- Game Module -->
+    <script type="module" src="js/game.js"></script>
+    <script type="module" src="js/mobileSupport.js"></script>
+</body>
+</html>

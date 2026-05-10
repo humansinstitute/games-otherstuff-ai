@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lemmings Game</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #8b5cf6;
+            --secondary-color: #6366f1;
+            --accent-color: #ec4899;
+            --bg-dark: #1e1b4b;
+            --bg-darker: #0f172a;
+            --text-light: #f1f5f9;
+            --shadow-color: rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-light);
+            overflow: hidden;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        canvas {
+            background: #2d3748;
+            border: 3px solid var(--primary-color);
+            border-radius: 8px;
+            box-shadow:
+                0 10px 40px var(--shadow-color),
+                0 0 20px rgba(139, 92, 246, 0.3);
+            cursor: crosshair;
+        }
+
+        .mono {
+            font-family: 'Space Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="1200" height="700"></canvas>
+    </div>
+
+    <script>
+        // Initialize canvas and context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Lemming class definition
+        class Lemming {
+            // Physics constants
+            static WALK_SPEED = 0.5;
+            static GRAVITY = 0.4;
+            static TERMINAL_VELOCITY = 8;
+            static MAX_SAFE_FALL = 80; // Maximum safe fall distance in pixels
+
+            // State machine states
+            static STATES = {
+                WALKING: 'walking',
+                FALLING: 'falling',
+                BLOCKING: 'blocking',
+                DIGGING: 'digging',
+                BUILDING: 'building',
+                BOMBER: 'bomber',
+                DEAD: 'dead',
+                SAVED: 'saved'
+            };
+
+            constructor(x, y) {
+                // Position
+                this.x = x;
+                this.y = y;
+
+                // Velocity
+                this.vx = Lemming.WALK_SPEED;
+                this.vy = 0;
+
+                // Direction: 1 = right, -1 = left
+                this.direction = 1;
+
+                // Current state
+                this.state = Lemming.STATES.WALKING;
+
+                // Visual properties
+                this.width = 10;
+                this.height = 20; // Body + head
+
+                // Animation
+                this.animationFrame = 0;
+
+                // Fall tracking
+                this.fallDistance = 0;
+                this.fallStartY = 0;
+
+                // Death animation
+                this.deathTimer = 0;
+                this.deathMaxTime = 30; // frames
+                this.splatRadius = 0;
+            }
+
+            update(dt, terrain, allLemmings = []) {
+                // Update animation frame
+                this.animationFrame++;
+
+                // Handle death animation
+                if (this.state === Lemming.STATES.DEAD) {
+                    this.deathTimer++;
+                    // Expand splat radius
+                    if (this.deathTimer < 10) {
+                        this.splatRadius = (this.deathTimer / 10) * 15;
+                    }
+                    // Animation complete
+                    return;
+                }
+
+                // Fade out fall distance indicator
+                if (this.fallDistance > 0 && this.state === Lemming.STATES.WALKING) {
+                    this.fallDistance -= 0.5;
+                    if (this.fallDistance < 0) this.fallDistance = 0;
+                }
+
+                // Apply gravity (not for blocking lemmings on ground)
+                if (this.state === Lemming.STATES.WALKING ||
+                    this.state === Lemming.STATES.FALLING ||
+                    this.state === Lemming.STATES.BLOCKING) {
+                    this.vy += Lemming.GRAVITY;
+
+                    // Cap at terminal velocity
+                    if (this.vy > Lemming.TERMINAL_VELOCITY) {
+                        this.vy = Lemming.TERMINAL_VELOCITY;
+                    }
+                }
+
+                // Track falling state
+                if (this.state === Lemming.STATES.FALLING && this.fallStartY === 0) {
+                    this.fallStartY = this.y;
+                }
+
+                // Apply horizontal movement
+                if (this.state === Lemming.STATES.WALKING ||
+                    this.state === Lemming.STATES.FALLING) {
+                    this.vx = Lemming.WALK_SPEED * this.direction;
+
+                    // Check for wall ahead
+                    const checkX = this.x + (this.direction * (this.width / 2 + 2));
+                    const checkY = this.y - this.height / 2;
+
+                    // Wall detection - check multiple points vertically
+                    let hitWall = false;
+                    for (let i = 0; i < 3; i++) {
+                        if (terrain && terrain.isSolid(checkX, checkY + i * 5)) {
+                            hitWall = true;
+                            break;
+                        }
+                    }
+
+                    // Check for blocker collision
+                    let hitBlocker = false;
+                    for (const other of allLemmings) {
+                        if (other !== this && other.state === Lemming.STATES.BLOCKING) {
+                            const dx = checkX - other.x;
+                            const dy = this.y - other.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            if (distance < 12) {
+                                hitBlocker = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if ((hitWall || hitBlocker) && this.state === Lemming.STATES.WALKING) {
+                        // Reverse direction when hitting a wall or blocker
+                        this.direction *= -1;
+                    } else {
+                        // Move horizontally
+                        this.x += this.vx;
+                    }
+                }
+
+                // Apply vertical movement
+                this.y += this.vy;
+
+                // Ground collision detection
+                if (terrain) {
+                    const feetY = this.y;
+                    const groundBelow = terrain.isSolid(this.x, feetY);
+
+                    if (groundBelow) {
+                        // Move lemming up until feet are on surface
+                        while (terrain.isSolid(this.x, this.y) && this.y > 0) {
+                            this.y -= 1;
+                        }
+
+                        this.vy = 0;
+
+                        // Transition from falling to walking (unless blocking)
+                        if (this.state === Lemming.STATES.FALLING) {
+                            this.fallDistance = this.y - this.fallStartY;
+                            this.fallStartY = 0;
+
+                            // Apply fall damage if fall distance is too great
+                            if (this.fallDistance > Lemming.MAX_SAFE_FALL) {
+                                this.state = Lemming.STATES.DEAD;
+                                this.vx = 0;
+                                this.vy = 0;
+                            } else {
+                                this.state = Lemming.STATES.WALKING;
+                            }
+                        }
+
+                        // Keep blocker stationary on ground
+                        if (this.state === Lemming.STATES.BLOCKING) {
+                            this.vx = 0;
+                            this.vy = 0;
+                        }
+                    } else if (this.state === Lemming.STATES.WALKING) {
+                        // Check for ledge - look ahead for ground
+                        let hasGroundAhead = false;
+                        const lookAheadX = this.x + (this.direction * (this.width / 2 + 1));
+
+                        // Check within 5 pixels down
+                        for (let checkY = this.y; checkY < this.y + 5; checkY++) {
+                            if (terrain.isSolid(lookAheadX, checkY)) {
+                                hasGroundAhead = true;
+                                break;
+                            }
+                        }
+
+                        // If no ground ahead, continue walking (will fall off)
+                        if (!hasGroundAhead) {
+                            this.state = Lemming.STATES.FALLING;
+                        }
+                    }
+
+                    // Check if currently falling
+                    if (!groundBelow && this.state === Lemming.STATES.WALKING) {
+                        this.state = Lemming.STATES.FALLING;
+                    }
+                }
+            }
+
+            render(ctx, isHovered = false) {
+                // Hover glow effect
+                if (isHovered && this.state !== Lemming.STATES.DEAD) {
+                    ctx.save();
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                }
+
+                // Death animation
+                if (this.state === Lemming.STATES.DEAD) {
+                    if (isHovered) ctx.restore();
+
+                    ctx.save();
+
+                    // Calculate fade out
+                    const fadeProgress = Math.min(this.deathTimer / this.deathMaxTime, 1);
+                    const alpha = 1 - fadeProgress;
+
+                    // Draw expanding red splat
+                    const gradient = ctx.createRadialGradient(
+                        this.x, this.y, 0,
+                        this.x, this.y, this.splatRadius
+                    );
+                    gradient.addColorStop(0, `rgba(220, 38, 38, ${alpha})`);
+                    gradient.addColorStop(0.5, `rgba(239, 68, 68, ${alpha * 0.6})`);
+                    gradient.addColorStop(1, `rgba(239, 68, 68, 0)`);
+
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.splatRadius, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Draw splat particles
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        const dist = this.splatRadius * 0.8;
+                        const px = this.x + Math.cos(angle) * dist;
+                        const py = this.y + Math.sin(angle) * dist;
+
+                        ctx.fillStyle = `rgba(220, 38, 38, ${alpha * 0.8})`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                    return;
+                }
+
+                ctx.save();
+
+                // Calculate walking bob animation (every 10 frames)
+                const bobOffset = this.state === Lemming.STATES.WALKING
+                    ? Math.sin(this.animationFrame / 10) * 1
+                    : 0;
+
+                // Flip horizontally based on direction
+                const flipX = this.direction === -1;
+                if (flipX) {
+                    ctx.translate(this.x, this.y + bobOffset);
+                    ctx.scale(-1, 1);
+                    ctx.translate(-this.x, -(this.y + bobOffset));
+                }
+
+                // Body dimensions
+                const bodyWidth = 10;
+                const bodyHeight = 14;
+                const headRadius = 3;
+                const bodyX = this.x - bodyWidth / 2;
+                const bodyY = this.y - bodyHeight + bobOffset;
+
+                // Choose color based on state
+                const isBlocking = this.state === Lemming.STATES.BLOCKING;
+                const bodyColor = isBlocking ? '#fb923c' : '#22d3ee'; // Orange for blocker, cyan for normal
+                const outlineColor = isBlocking ? '#c2410c' : '#0e7490'; // Dark orange or dark cyan
+
+                // Draw body (rounded rectangle)
+                ctx.fillStyle = bodyColor;
+                ctx.strokeStyle = outlineColor;
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                ctx.roundRect(bodyX, bodyY, bodyWidth, bodyHeight, 3);
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw head (circle on top)
+                const headX = this.x;
+                const headY = bodyY - headRadius;
+
+                ctx.fillStyle = bodyColor;
+                ctx.strokeStyle = outlineColor;
+                ctx.beginPath();
+                ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw eyes (two small white circles)
+                ctx.fillStyle = '#fff';
+
+                // Left eye
+                ctx.beginPath();
+                ctx.arc(headX - 1.5, headY - 0.5, 1, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Right eye
+                ctx.beginPath();
+                ctx.arc(headX + 1.5, headY - 0.5, 1, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw blocker arms (if blocking)
+                if (this.state === Lemming.STATES.BLOCKING) {
+                    ctx.strokeStyle = outlineColor;
+                    ctx.lineWidth = 2.5;
+                    ctx.lineCap = 'round';
+
+                    // Left arm (extended out)
+                    ctx.beginPath();
+                    ctx.moveTo(this.x - 3, this.y - 10);
+                    ctx.lineTo(this.x - 9, this.y - 8);
+                    ctx.stroke();
+
+                    // Right arm (extended out)
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 3, this.y - 10);
+                    ctx.lineTo(this.x + 9, this.y - 8);
+                    ctx.stroke();
+
+                    // Stop sign indicator - octagon shape
+                    ctx.fillStyle = '#ef4444';
+                    ctx.strokeStyle = '#991b1b';
+                    ctx.lineWidth = 1.5;
+
+                    // Draw octagon
+                    const signSize = 4;
+                    ctx.beginPath();
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+                        const px = this.x + Math.cos(angle) * signSize;
+                        const py = this.y - this.height / 2 + Math.sin(angle) * signSize;
+                        if (i === 0) {
+                            ctx.moveTo(px, py);
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // STOP text
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 3px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⛔', this.x, this.y - this.height / 2);
+
+                    // Draw collision radius indicator
+                    ctx.strokeStyle = 'rgba(251, 146, 60, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y - this.height / 2, 12, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                ctx.restore();
+
+                // Clear hover glow shadow
+                if (isHovered && this.state !== Lemming.STATES.DEAD) {
+                    ctx.restore();
+                }
+
+                // Debug: Show fall distance if lemming recently fell
+                if (this.fallDistance > 0) {
+                    ctx.save();
+                    // Red if dangerous fall, yellow if safe
+                    ctx.fillStyle = this.fallDistance > Lemming.MAX_SAFE_FALL ? '#ef4444' : '#fbbf24';
+                    ctx.font = '10px "Space Mono", monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(`-${Math.floor(this.fallDistance)}`, this.x, this.y - this.height - 5);
+                    ctx.restore();
+                }
+
+                // State indicator (debug)
+                if (this.state === Lemming.STATES.FALLING) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y - this.height - 8, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        // Entrance class definition
+        class Entrance {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 40;
+                this.height = 50;
+                this.animationFrame = 0;
+
+                // Particle system for portal effect
+                this.particles = [];
+                for (let i = 0; i < 15; i++) {
+                    this.particles.push({
+                        angle: Math.random() * Math.PI * 2,
+                        distance: Math.random() * 15 + 5,
+                        speed: Math.random() * 0.02 + 0.01,
+                        size: Math.random() * 2 + 1,
+                        offset: Math.random() * Math.PI * 2
+                    });
+                }
+            }
+
+            update(dt) {
+                this.animationFrame++;
+            }
+
+            render(ctx) {
+                ctx.save();
+
+                // Draw portal particles (swirling effect)
+                this.particles.forEach(particle => {
+                    const angle = particle.angle + this.animationFrame * particle.speed;
+                    const x = this.x + Math.cos(angle) * particle.distance;
+                    const y = this.y + Math.sin(angle) * particle.distance * 0.5;
+
+                    const alpha = 0.3 + Math.sin(this.animationFrame * 0.05 + particle.offset) * 0.3;
+                    ctx.fillStyle = `rgba(139, 92, 246, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                // Draw doorway structure
+                ctx.strokeStyle = '#8b5cf6';
+                ctx.lineWidth = 3;
+                ctx.fillStyle = '#1e1b4b';
+
+                // Door frame
+                ctx.fillRect(
+                    this.x - this.width / 2,
+                    this.y - this.height,
+                    this.width,
+                    this.height
+                );
+                ctx.strokeRect(
+                    this.x - this.width / 2,
+                    this.y - this.height,
+                    this.width,
+                    this.height
+                );
+
+                // Door arch (top decoration)
+                ctx.beginPath();
+                ctx.arc(
+                    this.x,
+                    this.y - this.height,
+                    this.width / 2,
+                    Math.PI,
+                    0
+                );
+                ctx.stroke();
+
+                // Glowing center portal
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y - this.height / 2, 0,
+                    this.x, this.y - this.height / 2, 15
+                );
+                gradient.addColorStop(0, 'rgba(139, 92, 246, 0.6)');
+                gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(
+                    this.x - 15,
+                    this.y - this.height,
+                    30,
+                    this.height
+                );
+
+                ctx.restore();
+            }
+        }
+
+        // Terrain class definition
+        class Terrain {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+
+                // Create 2D boolean array for terrain
+                this.grid = Array(height).fill(null).map(() => Array(width).fill(false));
+
+                // Create color variation map for organic look
+                this.colorMap = Array(height).fill(null).map(() =>
+                    Array(width).fill(null).map(() => ({
+                        r: 139 + Math.random() * 30 - 15,
+                        g: 69 + Math.random() * 20 - 10,
+                        b: 19 + Math.random() * 20 - 10
+                    }))
+                );
+
+                // Initialize with level design
+                this.initializeLevel();
+            }
+
+            initializeLevel() {
+                // Entrance platform (top-left)
+                this.drawRect(50, 150, 100, 20, true);
+
+                // Staircase down from entrance
+                this.drawRect(140, 170, 60, 20, true);
+                this.drawRect(190, 190, 60, 20, true);
+
+                // Middle barriers and platforms
+                this.drawRect(280, 250, 80, 100, true);
+                this.drawRect(400, 300, 60, 80, true);
+                this.drawRect(520, 350, 80, 60, true);
+
+                // Gap crossing platforms
+                this.drawRect(650, 400, 100, 20, true);
+                this.drawRect(800, 450, 120, 20, true);
+
+                // Exit platform (bottom-right)
+                this.drawRect(1050, 600, 140, 50, true);
+
+                // Ground level
+                this.drawRect(0, 650, this.width, 50, true);
+            }
+
+            drawRect(x, y, width, height, value) {
+                for (let dy = 0; dy < height; dy++) {
+                    for (let dx = 0; dx < width; dx++) {
+                        const px = x + dx;
+                        const py = y + dy;
+                        if (px >= 0 && px < this.width && py >= 0 && py < this.height) {
+                            this.grid[py][px] = value;
+                        }
+                    }
+                }
+            }
+
+            isSolid(x, y) {
+                const px = Math.floor(x);
+                const py = Math.floor(y);
+                if (px < 0 || px >= this.width || py < 0 || py >= this.height) {
+                    return false;
+                }
+                return this.grid[py][px];
+            }
+
+            render(ctx) {
+                // Use image data for efficient pixel manipulation
+                const imageData = ctx.createImageData(this.width, this.height);
+                const data = imageData.data;
+
+                for (let y = 0; y < this.height; y++) {
+                    for (let x = 0; x < this.width; x++) {
+                        if (this.grid[y][x]) {
+                            const index = (y * this.width + x) * 4;
+                            const color = this.colorMap[y][x];
+
+                            data[index] = color.r;     // R
+                            data[index + 1] = color.g; // G
+                            data[index + 2] = color.b; // B
+                            data[index + 3] = 255;     // A
+                        }
+                    }
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+            }
+        }
+
+        // Game state
+        let lastTime = 0;
+        let deltaTime = 0;
+
+        // FPS tracking
+        let fps = 0;
+        let frameCount = 0;
+        let fpsUpdateTime = 0;
+
+        // Level configuration
+        const MAX_LEMMINGS = 20;
+        const SPAWN_INTERVAL = 2.0; // seconds
+
+        // Terrain
+        const terrain = new Terrain(canvas.width, canvas.height);
+
+        // Entrance
+        const entrance = new Entrance(100, 150);
+
+        // Lemmings array
+        const lemmings = [];
+        let spawnTimer = 0;
+        let lemmingsSpawned = 0;
+        let lemmingsDead = 0;
+
+        // Skill inventory
+        const skills = {
+            blocker: 5,
+            digger: 0,
+            builder: 0,
+            bomber: 0
+        };
+        let selectedSkill = 'blocker';
+
+        // Mouse interaction
+        let mouseX = 0;
+        let mouseY = 0;
+        let hoveredLemming = null;
+
+        // Helper function to check if point is within lemming bounds
+        function isPointInLemming(x, y, lemming) {
+            if (lemming.state === Lemming.STATES.DEAD) return false;
+
+            const dx = x - lemming.x;
+            const dy = y - (lemming.y - lemming.height / 2);
+            const radius = Math.max(lemming.width, lemming.height) / 2;
+
+            return dx * dx + dy * dy < radius * radius;
+        }
+
+        // Mouse move handler
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+
+            // Find hovered lemming
+            hoveredLemming = null;
+            for (let i = lemmings.length - 1; i >= 0; i--) {
+                if (isPointInLemming(mouseX, mouseY, lemmings[i])) {
+                    hoveredLemming = lemmings[i];
+                    break;
+                }
+            }
+
+            // Update cursor
+            canvas.style.cursor = hoveredLemming ? 'pointer' : 'crosshair';
+        });
+
+        // Mouse click handler
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            // Find clicked lemming
+            for (let i = lemmings.length - 1; i >= 0; i--) {
+                const lemming = lemmings[i];
+                if (isPointInLemming(clickX, clickY, lemming)) {
+                    // Try to assign selected skill
+                    if (selectedSkill === 'blocker' && skills.blocker > 0) {
+                        // Can only assign blocker if lemming is walking or falling
+                        if (lemming.state === Lemming.STATES.WALKING ||
+                            lemming.state === Lemming.STATES.FALLING) {
+                            lemming.state = Lemming.STATES.BLOCKING;
+                            lemming.vx = 0;
+                            lemming.vy = 0;
+                            skills.blocker--;
+                            // NOTE: Blockers remain until level ends (can't be un-blocked in MVP)
+                            console.log(`Assigned blocker to lemming. Remaining: ${skills.blocker}`);
+                        }
+                    }
+                    break;
+                }
+            }
+        });
+
+        // Update game state
+        function update(dt) {
+            // Update entrance
+            entrance.update(dt);
+
+            // Spawn lemmings
+            if (lemmingsSpawned < MAX_LEMMINGS) {
+                spawnTimer += dt;
+                if (spawnTimer >= SPAWN_INTERVAL) {
+                    spawnTimer = 0;
+                    const newLemming = new Lemming(entrance.x, entrance.y);
+                    newLemming.state = Lemming.STATES.FALLING;
+                    lemmings.push(newLemming);
+                    lemmingsSpawned++;
+                }
+            }
+
+            // Update all lemmings
+            lemmings.forEach(lemming => {
+                lemming.update(dt, terrain, lemmings);
+
+                // Wrap around screen edges
+                if (lemming.x > canvas.width + 20) {
+                    lemming.x = -20;
+                }
+                if (lemming.x < -20) {
+                    lemming.x = canvas.width + 20;
+                }
+            });
+
+            // Remove dead lemmings after animation completes
+            for (let i = lemmings.length - 1; i >= 0; i--) {
+                if (lemmings[i].state === Lemming.STATES.DEAD &&
+                    lemmings[i].deathTimer >= lemmings[i].deathMaxTime) {
+                    lemmings.splice(i, 1);
+                    lemmingsDead++;
+                }
+            }
+
+            // Update FPS counter
+            frameCount++;
+            fpsUpdateTime += dt;
+            if (fpsUpdateTime >= 1.0) {
+                fps = frameCount;
+                frameCount = 0;
+                fpsUpdateTime = 0;
+            }
+        }
+
+        // Render game visuals
+        function render() {
+            // Clear canvas with background color
+            ctx.fillStyle = '#2d3748';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw terrain
+            terrain.render(ctx);
+
+            // Draw entrance
+            entrance.render(ctx);
+
+            // Draw all lemmings
+            lemmings.forEach(lemming => {
+                const isHovered = lemming === hoveredLemming;
+                lemming.render(ctx, isHovered);
+            });
+
+            // Draw UI - Lemming counter
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '24px "Fredoka", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`Out: ${lemmingsSpawned} / ${MAX_LEMMINGS}`, 20, 20);
+
+            // Draw dead counter
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText(`Dead: ${lemmingsDead}`, 20, 50);
+
+            // Draw skills UI
+            ctx.font = '18px "Fredoka", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#f1f5f9';
+            ctx.fillText('Skills:', 20, 90);
+
+            // Blocker skill button
+            const blockerY = 120;
+            if (selectedSkill === 'blocker') {
+                ctx.fillStyle = '#8b5cf6';
+                ctx.fillRect(15, blockerY - 5, 150, 35);
+            }
+            ctx.strokeStyle = '#8b5cf6';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(15, blockerY - 5, 150, 35);
+
+            ctx.fillStyle = skills.blocker > 0 ? '#f1f5f9' : '#6b7280';
+            ctx.fillText(`🛑 Blocker: ${skills.blocker}`, 25, blockerY + 5);
+
+            // Draw FPS counter (debug)
+            ctx.fillStyle = '#f1f5f9';
+            ctx.font = '14px "Space Mono", monospace';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`FPS: ${fps}`, canvas.width - 10, 10);
+            ctx.fillText(`Delta: ${(deltaTime * 1000).toFixed(2)}ms`, canvas.width - 10, 28);
+        }
+
+        // Main game loop
+        function gameLoop(currentTime) {
+            // Calculate delta time in seconds
+            deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            // Cap delta time to prevent spiral of death
+            if (deltaTime > 0.1) {
+                deltaTime = 0.1;
+            }
+
+            // Update and render
+            update(deltaTime);
+            render();
+
+            // Request next frame
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game loop
+        console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
+        console.log('Starting game loop...');
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>

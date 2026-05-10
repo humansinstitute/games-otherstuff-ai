@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CRUSH</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d1525">
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="0f48fa29-c7b3-4880-8428-4ade7c99d591"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0a0a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: 'Courier New', monospace;
+      touch-action: none;
+      user-select: none;
+      padding: 10px;
+      overflow: hidden;
+    }
+
+    .game-container {
+      background-color: #0d1525;
+      padding: 15px;
+      border-radius: 8px;
+      border: 2px solid #1a3a5c;
+      box-shadow: 0 0 20px rgba(0, 150, 200, 0.2);
+      max-height: calc(100dvh - 20px);
+      max-width: calc(100vw - 20px);
+      display: flex;
+      flex-direction: column;
+      transform-origin: center center;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding: 0 5px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background-color: #00ff88;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00ff88;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .status-dot:hover {
+      transform: scale(1.3);
+    }
+
+    .title {
+      color: #4a9eff;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    .stats {
+      color: #4a7a9e;
+      font-size: 11px;
+    }
+
+    .stats span {
+      color: #6ab0e0;
+    }
+
+    #gameCanvas {
+      background-color: #0a1628;
+      border: 2px solid #1a3a5c;
+      display: block;
+      max-width: 100%;
+      height: auto;
+      cursor: pointer;
+    }
+
+    .controls-hint {
+      color: #4a7a9e;
+      font-size: 11px;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    .controls-hint .key {
+      color: #e8a030;
+    }
+
+    /* Menu Modal */
+    .menu-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .menu-modal.active {
+      display: flex;
+    }
+
+    .menu-content {
+      background-color: #0d1525;
+      border: 2px solid #1a3a5c;
+      border-radius: 8px;
+      padding: 20px;
+      min-width: 280px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .menu-content h3 {
+      color: #4a9eff;
+      margin-bottom: 15px;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    .menu-item {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #2a4a6a;
+      color: #6ab0e0;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .menu-item:hover {
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
+
+    .menu-item.danger {
+      border-color: #e74c3c;
+      color: #e74c3c;
+    }
+
+    .menu-item.danger:hover {
+      background-color: #e74c3c;
+      color: #fff;
+    }
+
+    .menu-close {
+      display: block;
+      width: 100%;
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #4a7a9e;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .keys-display {
+      background-color: #0a1628;
+      border: 1px solid #1a3a5c;
+      border-radius: 5px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      font-size: 10px;
+      word-break: break-all;
+    }
+
+    .keys-display .label {
+      color: #4a7a9e;
+      font-size: 9px;
+      margin-bottom: 4px;
+    }
+
+    .keys-display .value {
+      color: #9b59b6;
+      margin-bottom: 10px;
+    }
+
+    .keys-display .masked {
+      color: #4a7a9e;
+      font-style: italic;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: 1px solid #4a7a9e;
+      color: #4a7a9e;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 9px;
+      cursor: pointer;
+      margin-left: 8px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .copy-btn:hover {
+      border-color: #9b59b6;
+      color: #9b59b6;
+    }
+
+    .copy-btn.copied {
+      border-color: #00ff88;
+      color: #00ff88;
+    }
+
+    .key-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .key-row .value {
+      flex: 1;
+      margin-bottom: 0;
+    }
+
+    /* Mode Select Screen */
+    .mode-screen {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 22, 40, 0.98);
+      border: 2px solid #1a3a5c;
+      color: #6ab0e0;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 100;
+      width: 300px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .mode-screen h1 {
+      color: #4a9eff;
+      font-size: 22px;
+      margin-bottom: 8px;
+      letter-spacing: 3px;
+    }
+
+    .mode-screen .subtitle {
+      color: #4a7a9e;
+      font-size: 12px;
+      margin-bottom: 25px;
+    }
+
+    .mode-screen .mode-btn {
+      display: block;
+      width: 100%;
+      background-color: transparent;
+      border: 2px solid;
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+      transition: all 0.2s;
+      margin-bottom: 12px;
+    }
+
+    .mode-btn.endless {
+      color: #a55eea;
+      border-color: #a55eea;
+    }
+
+    .mode-btn.endless:hover {
+      background-color: #a55eea;
+      color: #fff;
+    }
+
+    .mode-btn.moves {
+      color: #e8a030;
+      border-color: #e8a030;
+    }
+
+    .mode-btn.moves:hover {
+      background-color: #e8a030;
+      color: #0a1628;
+    }
+
+    .mode-btn.timed {
+      color: #2ed573;
+      border-color: #2ed573;
+    }
+
+    .mode-btn.timed:hover {
+      background-color: #2ed573;
+      color: #0a1628;
+    }
+
+    .mode-screen .mode-desc {
+      font-size: 10px;
+      color: #4a7a9e;
+      margin-top: -8px;
+      margin-bottom: 12px;
+    }
+
+    .mode-screen .btn-nip07 {
+      margin-top: 15px;
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .mode-screen .btn-nip07:hover {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+
+    .mode-screen .player-info {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #4a7a9e;
+    }
+
+    .mode-screen .player-info .npub {
+      color: #9b59b6;
+      font-family: monospace;
+    }
+
+    /* Game Over / Victory Overlay */
+    .game-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(10, 22, 40, 0.98);
+      border: 2px solid #e8a030;
+      color: #e8a030;
+      padding: 30px 40px;
+      border-radius: 8px;
+      text-align: center;
+      display: none;
+      box-shadow: 0 0 30px rgba(232, 160, 48, 0.3);
+      z-index: 100;
+      width: 280px;
+      max-width: calc(100vw - 40px);
+    }
+
+    .game-overlay.victory {
+      border-color: #00ff88;
+      color: #00ff88;
+      box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+    }
+
+    .game-overlay h2 {
+      margin-bottom: 10px;
+      letter-spacing: 3px;
+    }
+
+    .game-overlay p {
+      color: #6ab0e0;
+      margin-bottom: 15px;
+    }
+
+    .game-overlay button {
+      background-color: transparent;
+      color: #e8a030;
+      border: 2px solid #e8a030;
+      padding: 10px 30px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .game-overlay button:hover {
+      background-color: #e8a030;
+      color: #0a1628;
+    }
+
+    .game-overlay.victory button {
+      color: #00ff88;
+      border-color: #00ff88;
+    }
+
+    .game-overlay.victory button:hover {
+      background-color: #00ff88;
+      color: #0a1628;
+    }
+
+    .game-overlay .btn-nostr {
+      color: #9b59b6;
+      border-color: #9b59b6;
+    }
+
+    .game-overlay .btn-nostr:hover {
+      background-color: #9b59b6;
+      color: #fff;
+    }
+
+    .game-overlay .btn-nostr:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .publish-status {
+      font-size: 11px;
+      margin-top: 8px;
+      color: #6ab0e0;
+    }
+
+    @media (max-width: 600px) {
+      .controls-hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="header">
+      <div class="status-dot"></div>
+      <div class="title">CRUSH</div>
+      <div class="stats">Score: <span id="score">0</span></div>
+    </div>
+    <canvas id="gameCanvas" width="320" height="400"></canvas>
+    <div class="controls-hint">
+      Tap to select, tap adjacent to swap. Match <span class="key">3+</span> candies!
+    </div>
+  </div>
+
+  <!-- Menu Modal -->
+  <div class="menu-modal" id="menuModal">
+    <div class="menu-content" id="menuContent">
+      <!-- Content will be set by JS -->
+    </div>
+  </div>
+
+  <!-- Mode Select Screen -->
+  <div class="mode-screen" id="modeScreen">
+    <h1>CRUSH</h1>
+    <div class="subtitle">Match 3 to score!</div>
+
+    <button class="mode-btn endless" id="btnEndless">ENDLESS</button>
+    <div class="mode-desc">Play until no moves remain</div>
+
+    <button class="mode-btn moves" id="btnMoves">30 MOVES</button>
+    <div class="mode-desc">Score 5,000 points in 30 moves</div>
+
+    <button class="mode-btn timed" id="btnTimed">TIME ATTACK</button>
+    <div class="mode-desc">Score 3,000 points in 2 minutes</div>
+
+    <button class="mode-btn btn-nip07" id="modeNip07Btn" style="display:none;">Login with NIP-07</button>
+    <div class="player-info">
+      Playing as <span class="npub" id="modeNpub">...</span>
+    </div>
+  </div>
+
+  <!-- Game Over Overlay -->
+  <div class="game-overlay" id="gameOverScreen">
+    <h2>GAME OVER</h2>
+    <p>Score: <span id="finalScore">0</span></p>
+    <button id="restartBtn">PLAY AGAIN</button>
+    <button id="changeModeBtn">CHANGE MODE</button>
+    <button class="btn-nostr" id="publishNostrBtn">Share on Nostr</button>
+    <div class="publish-status" id="publishStatus"></div>
+  </div>
+
+  <!-- Victory Overlay -->
+  <div class="game-overlay victory" id="victoryScreen">
+    <h2>VICTORY!</h2>
+    <p>Target reached!</p>
+    <p>Final Score: <span id="victoryScore">0</span></p>
+    <button id="playAgainBtn">PLAY AGAIN</button>
+    <button id="victoryChangeModeBtn">CHANGE MODE</button>
+    <button class="btn-nostr" id="publishVictoryBtn">Share on Nostr</button>
+    <div class="publish-status" id="victoryPublishStatus"></div>
+  </div>
+
+  <script src="nostr.js"></script>
+  <script type="module">
+    import { Game, GameState, GameMode } from './game.js';
+
+    const canvas = document.getElementById('gameCanvas');
+    const game = new Game(canvas);
+
+    // UI Elements
+    const scoreElement = document.getElementById('score');
+    const modeScreen = document.getElementById('modeScreen');
+    const btnEndless = document.getElementById('btnEndless');
+    const btnMoves = document.getElementById('btnMoves');
+    const btnTimed = document.getElementById('btnTimed');
+    const modeNip07Btn = document.getElementById('modeNip07Btn');
+    const modeNpub = document.getElementById('modeNpub');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreElement = document.getElementById('finalScore');
+    const restartBtn = document.getElementById('restartBtn');
+    const changeModeBtn = document.getElementById('changeModeBtn');
+    const publishNostrBtn = document.getElementById('publishNostrBtn');
+    const publishStatus = document.getElementById('publishStatus');
+    const victoryScreen = document.getElementById('victoryScreen');
+    const victoryScoreElement = document.getElementById('victoryScore');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const victoryChangeModeBtn = document.getElementById('victoryChangeModeBtn');
+    const publishVictoryBtn = document.getElementById('publishVictoryBtn');
+    const victoryPublishStatus = document.getElementById('victoryPublishStatus');
+
+    // State change callback
+    game.onStateChange = (newState, oldState, data) => {
+      // Hide all overlays first
+      modeScreen.style.display = 'none';
+      gameOverScreen.style.display = 'none';
+      victoryScreen.style.display = 'none';
+
+      switch (newState) {
+        case GameState.MODE_SELECT:
+          modeScreen.style.display = 'block';
+          break;
+        case GameState.GAME_OVER:
+          finalScoreElement.textContent = game.score.toLocaleString();
+          gameOverScreen.style.display = 'block';
+          resetPublishButton(publishNostrBtn, publishStatus);
+          break;
+        case GameState.VICTORY:
+          victoryScoreElement.textContent = game.score.toLocaleString();
+          victoryScreen.style.display = 'block';
+          resetPublishButton(publishVictoryBtn, victoryPublishStatus);
+          break;
+      }
+    };
+
+    // Score change callback
+    game.onScoreChange = (score) => {
+      scoreElement.textContent = score.toLocaleString();
+    };
+
+    // Canvas click/touch handling
+    let touchStartPos = null;
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      game.handleClick(x, y);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      touchStartPos = {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY
+      };
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      if (!touchStartPos) return;
+
+      const touch = e.changedTouches[0];
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const endX = (touch.clientX - rect.left) * scaleX;
+      const endY = (touch.clientY - rect.top) * scaleY;
+
+      const dx = endX - touchStartPos.x;
+      const dy = endY - touchStartPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist > 20) {
+        // Swipe detected
+        game.handleDrag(touchStartPos.x, touchStartPos.y, endX, endY);
+      } else {
+        // Tap
+        game.handleClick(touchStartPos.x, touchStartPos.y);
+      }
+
+      touchStartPos = null;
+    }, { passive: false });
+
+    // Prevent scrolling on mobile
+    document.body.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    // Mode selection buttons
+    btnEndless.addEventListener('click', () => {
+      modeScreen.style.display = 'none';
+      game.start(GameMode.ENDLESS);
+    });
+
+    btnMoves.addEventListener('click', () => {
+      modeScreen.style.display = 'none';
+      game.start(GameMode.MOVES);
+    });
+
+    btnTimed.addEventListener('click', () => {
+      modeScreen.style.display = 'none';
+      game.start(GameMode.TIMED);
+    });
+
+    // Restart buttons
+    restartBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      game.restart();
+    });
+
+    playAgainBtn.addEventListener('click', () => {
+      victoryScreen.style.display = 'none';
+      game.restart();
+    });
+
+    // Change mode buttons
+    changeModeBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      game.setState(GameState.MODE_SELECT);
+      modeScreen.style.display = 'block';
+    });
+
+    victoryChangeModeBtn.addEventListener('click', () => {
+      victoryScreen.style.display = 'none';
+      game.setState(GameState.MODE_SELECT);
+      modeScreen.style.display = 'block';
+    });
+
+    // Nostr integration
+    function updateModeScreen() {
+      if (typeof window.NostrGame === 'undefined') {
+        setTimeout(updateModeScreen, 100);
+        return;
+      }
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) {
+        modeNpub.textContent = '...';
+        return;
+      }
+
+      const shortNpub = window.NostrGame.getShortNpub(player.npub);
+      modeNpub.textContent = shortNpub;
+
+      if (window.NostrGame.hasNostrExtension() && !player.isExtension) {
+        modeNip07Btn.style.display = 'block';
+      } else {
+        modeNip07Btn.style.display = 'none';
+      }
+    }
+
+    modeNip07Btn.addEventListener('click', async () => {
+      try {
+        modeNip07Btn.disabled = true;
+        modeNip07Btn.textContent = 'Connecting...';
+        await window.NostrGame.loginWithExtension();
+        updateModeScreen();
+      } catch (err) {
+        alert('Login failed: ' + err.message);
+      } finally {
+        modeNip07Btn.disabled = false;
+        modeNip07Btn.textContent = 'Login with NIP-07';
+      }
+    });
+
+    // Publish to Nostr
+    function resetPublishButton(btn, statusEl) {
+      btn.disabled = false;
+      btn.textContent = 'Share on Nostr';
+      statusEl.textContent = '';
+    }
+
+    async function publishScore(btn, statusEl) {
+      if (typeof window.NostrGame === 'undefined') {
+        statusEl.textContent = 'Nostr not ready';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Publishing...';
+      statusEl.textContent = '';
+
+      try {
+        const gameUrl = window.location.href;
+        const result = await window.NostrGame.publishGameResult(game.score, gameUrl, 'Crush');
+
+        const successCount = result.results.filter(r => r.success).length;
+        if (successCount > 0) {
+          statusEl.innerHTML = `Published to ${successCount} relay(s)!`;
+          btn.textContent = 'Published!';
+        } else {
+          statusEl.textContent = 'Failed to publish to relays';
+          btn.textContent = 'Share on Nostr';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        btn.textContent = 'Share on Nostr';
+        btn.disabled = false;
+      }
+    }
+
+    publishNostrBtn.addEventListener('click', () => publishScore(publishNostrBtn, publishStatus));
+    publishVictoryBtn.addEventListener('click', () => publishScore(publishVictoryBtn, victoryPublishStatus));
+
+    // Menu functionality
+    const statusDot = document.querySelector('.status-dot');
+    const menuModal = document.getElementById('menuModal');
+    const menuContent = document.getElementById('menuContent');
+
+    function showMainMenu() {
+      const isPlaying = game.state !== GameState.MODE_SELECT;
+
+      menuContent.innerHTML = `
+        <h3>MENU</h3>
+        ${isPlaying ? `
+          <button class="menu-item" id="menuRestart">Restart Game</button>
+          <button class="menu-item" id="menuChangeMode">Change Mode</button>
+        ` : ''}
+        <button class="menu-item" id="menuShowKeys">Show Keys</button>
+        <button class="menu-item danger" id="menuNewPlayer">New Player</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+      menuModal.classList.add('active');
+
+      if (isPlaying) {
+        document.getElementById('menuRestart').onclick = () => {
+          closeMenu();
+          game.restart();
+        };
+        document.getElementById('menuChangeMode').onclick = () => {
+          closeMenu();
+          game.setState(GameState.MODE_SELECT);
+          modeScreen.style.display = 'block';
+        };
+      }
+      document.getElementById('menuShowKeys').onclick = showKeysMenu;
+      document.getElementById('menuNewPlayer').onclick = confirmNewPlayer;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    function showKeysMenu() {
+      if (typeof window.NostrGame === 'undefined') return;
+
+      const player = window.NostrGame.getPlayer();
+      if (!player) return;
+
+      const npubDisplay = player.npub || 'Not available';
+      const hasNsec = !player.isExtension && player.nsec;
+
+      let nsecHtml;
+      if (player.isExtension) {
+        nsecHtml = '<span class="masked">Not available (using extension)</span>';
+      } else if (player.nsec) {
+        nsecHtml = `
+          <div class="key-row">
+            <div class="value">${player.nsec}</div>
+            <button class="copy-btn" id="copyNsec">COPY</button>
+          </div>
+        `;
+      } else {
+        nsecHtml = '<span class="masked">Not available</span>';
+      }
+
+      menuContent.innerHTML = `
+        <h3>YOUR KEYS</h3>
+        <div class="keys-display">
+          <div class="label">PUBLIC KEY (npub)</div>
+          <div class="key-row">
+            <div class="value">${npubDisplay}</div>
+            <button class="copy-btn" id="copyNpub">COPY</button>
+          </div>
+          <div class="label" style="margin-top: 10px;">PRIVATE KEY (nsec)</div>
+          ${hasNsec ? nsecHtml : `<div class="value">${nsecHtml}</div>`}
+        </div>
+        <button class="menu-item" id="menuBack">Back</button>
+        <button class="menu-close" id="menuClose">Close</button>
+      `;
+
+      document.getElementById('copyNpub').onclick = () => copyToClipboard(player.npub, 'copyNpub');
+      if (hasNsec) {
+        document.getElementById('copyNsec').onclick = () => copyToClipboard(player.nsec, 'copyNsec');
+      }
+      document.getElementById('menuBack').onclick = showMainMenu;
+      document.getElementById('menuClose').onclick = closeMenu;
+    }
+
+    async function copyToClipboard(text, btnId) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById(btnId);
+        btn.textContent = 'COPIED';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'COPY';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        alert('Failed to copy');
+      }
+    }
+
+    function confirmNewPlayer() {
+      menuContent.innerHTML = `
+        <h3>NEW PLAYER</h3>
+        <p style="color: #e74c3c; font-size: 11px; margin-bottom: 15px;">
+          This will generate a new identity. Your current keys will be lost forever!
+        </p>
+        <button class="menu-item danger" id="menuConfirmNew">Yes, Generate New Key</button>
+        <button class="menu-item" id="menuBack">Cancel</button>
+      `;
+
+      document.getElementById('menuConfirmNew').onclick = async () => {
+        if (typeof window.NostrGame !== 'undefined') {
+          await window.NostrGame.logout();
+          updateModeScreen();
+        }
+        closeMenu();
+      };
+      document.getElementById('menuBack').onclick = showMainMenu;
+    }
+
+    function closeMenu() {
+      menuModal.classList.remove('active');
+    }
+
+    statusDot.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showMainMenu();
+    });
+
+    menuModal.addEventListener('click', (e) => {
+      if (e.target === menuModal) {
+        closeMenu();
+      }
+    });
+
+    // Responsive scaling
+    const gameContainer = document.querySelector('.game-container');
+
+    function resizeGame() {
+      const containerWidth = 320 + 30 + 4;
+      const containerHeight = 400 + 30 + 4 + 50;
+
+      const vv = window.visualViewport;
+      const availableWidth = (vv ? vv.width : window.innerWidth) - 20;
+      const availableHeight = (vv ? vv.height : window.innerHeight) - 20;
+
+      const scaleX = availableWidth / containerWidth;
+      const scaleY = availableHeight / containerHeight;
+      const scale = Math.min(scaleX, scaleY, 1);
+
+      gameContainer.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeGame);
+    window.addEventListener('orientationchange', () => setTimeout(resizeGame, 100));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeGame);
+    }
+    resizeGame();
+
+    // Initialize
+    setTimeout(updateModeScreen, 200);
+
+    // Initial render
+    game.render();
+  </script>
+</body>
+</html>

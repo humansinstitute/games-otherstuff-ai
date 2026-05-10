@@ -1,0 +1,1960 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="assets/icon-jumble.png">
+  <link rel="shortcut icon" type="image/png" sizes="1024x1024" href="assets/icon-jumble.png">
+  <link rel="apple-touch-icon" href="assets/icon-jumble.png">
+  <meta name="theme-color" content="#121213">
+  <title>JUMBLE</title>
+  <style>
+    /* Nostr UI styles */
+    .header-left {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .avatar-bubble {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #3a3a3c;
+      background: #1a1a1b;
+      color: #9333ea;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: transform 0.1s ease;
+    }
+    .avatar-bubble:active { transform: translateY(1px); }
+    .avatar-dropdown {
+      position: absolute;
+      top: 44px;
+      left: 0;
+      min-width: 240px;
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      padding: 12px;
+      display: none;
+      z-index: 1200;
+    }
+    .avatar-dropdown.open { display: block; }
+    .avatar-label {
+      color: #ffffff;
+      font-size: 12px;
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+    .nostr-btn {
+      width: 100%;
+      background: #2a2a2b;
+      color: #ffffff;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .nostr-btn:hover { background: #3a3a3b; }
+    .nostr-btn:active { transform: translateY(1px); }
+    .nostr-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #3a3a3c;
+      background: #121213;
+      color: #ffffff;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    #keysModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+      padding: 12px;
+    }
+    #keysModalInner {
+      width: min(92vw, 420px);
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    }
+    #keysModalNpub, #keysModalNsec {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      padding: 8px 10px;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      background: #121213;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    #keysModalToggle {
+      width: 40px;
+      height: 40px;
+      font-size: 16px;
+    }
+    #keysQrContainer { margin-top: 8px; display: flex; justify-content: center; }
+    :root {
+      --bg: #121213;
+      --tile-bg: #1a1a1b;
+      --tile-border: #3a3a3c;
+      --tile-text: #ffffff;
+      --selected: #9333ea;
+      --valid-word: #22c55e;
+      --invalid: #ef4444;
+      --key-bg: #818384;
+      --key-text: #ffffff;
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg);
+      color: #ffffff;
+      font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+    }
+    .header {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #3a3a3c;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 2px;
+    }
+    .score-display {
+      font-size: 18px;
+      font-weight: 700;
+      color: #9333ea;
+    }
+    .jumbles-display {
+      font-size: 12px;
+      color: #818384;
+    }
+    .timer-display {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-display.warning {
+      color: #f59e0b;
+    }
+    .timer-display.critical {
+      color: #ef4444;
+      animation: pulse 0.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      flex: 1;
+      width: 100%;
+      max-width: 500px;
+      padding: 12px;
+      gap: 12px;
+      overflow-y: auto;
+      --tile-size: min(64px, calc((100vw - 48px) / 5 - 6px));
+      --board-width: calc(var(--tile-size) * 5 + 24px);
+    }
+    .current-word {
+      min-height: 48px;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .current-word.valid {
+      color: var(--valid-word);
+    }
+    .current-word.invalid {
+      color: var(--invalid);
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: 6px;
+      padding: 10px;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+    }
+    .tile {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      border: 2px solid var(--tile-border);
+      touch-action: none;
+      -webkit-touch-callout: none;
+      border-radius: 8px;
+      background: var(--tile-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(24px, 5vw, 32px);
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.15s, border-color 0.15s;
+    }
+    .tile:hover {
+      background: #2a2a2b;
+    }
+    .tile.selected {
+      background: #f97316;
+      border-color: #f97316;
+      transform: scale(1.05);
+    }
+    .tile.last-selected {
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.5);
+    }
+    .tile.success {
+      background: var(--selected);
+      border-color: var(--selected);
+      animation: success-flash 0.6s ease;
+    }
+    .tile.new-letter {
+      animation: drop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes success-flash {
+      0% { transform: scale(1.05); }
+      30% { transform: scale(1.15); background: #a855f7; }
+      50% { transform: scale(1.1); background: #ffffff; }
+      70% { transform: scale(1.15); background: #a855f7; }
+      100% { transform: scale(1); background: var(--tile-bg); border-color: var(--tile-border); }
+    }
+    @keyframes drop-in {
+      0% { transform: translateY(-80px) scale(0.5); opacity: 0; }
+      60% { transform: translateY(10px) scale(1.1); opacity: 1; }
+      80% { transform: translateY(-5px) scale(0.95); }
+      100% { transform: translateY(0) scale(1); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+    .shake {
+      animation: shake 0.3s;
+    }
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      width: var(--board-width);
+    }
+    .control-btn {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, opacity 0.1s;
+    }
+    .control-btn:active {
+      transform: scale(0.95);
+    }
+    .control-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .submit-btn {
+      background: var(--valid-word);
+      color: white;
+      width: 100%;
+    }
+    .clear-btn {
+      background: #3a3a3c;
+      color: white;
+      flex: 1;
+    }
+    .jumble-btn {
+      background: #f97316;
+      color: white;
+      flex: 1;
+    }
+    .word-list {
+      width: var(--board-width);
+      max-height: 120px;
+      overflow-y: auto;
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+    .word-list-title {
+      font-size: 11px;
+      color: #818384;
+      margin-bottom: 6px;
+    }
+    .word-list-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .word-item {
+      font-size: 12px;
+      background: #2a2a2b;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: #9333ea;
+    }
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: #ffffff;
+      color: #121213;
+      padding: 14px 24px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 14px;
+      animation: fadeIn 0.2s, fadeOut 0.2s 1.3s forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    .sats-bonus-overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+      pointer-events: none;
+      animation: satsBonusFade 2s ease-out forwards;
+    }
+    .sats-bonus-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      animation: satsBonusPop 0.5s ease-out;
+    }
+    .sats-bonus-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: #f7931a;
+      text-shadow: 0 0 20px rgba(247, 147, 26, 0.8), 0 0 40px rgba(247, 147, 26, 0.5);
+      letter-spacing: 0.1em;
+    }
+    .sats-bonus-word {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+    .sats-bonus-points {
+      font-size: 48px;
+      font-weight: 900;
+      color: #f7931a;
+      text-shadow: 0 0 30px rgba(247, 147, 26, 0.8);
+    }
+    @keyframes satsBonusPop {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes satsBonusFade {
+      0%, 70% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .tile.sats-bonus {
+      background: #f7931a !important;
+      border-color: #f7931a !important;
+      animation: satsTilePulse 0.3s ease-out 3;
+    }
+    @keyframes satsTilePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+    }
+    .modal-overlay.visible {
+      display: flex;
+    }
+    .modal {
+      background: #121213;
+      border: 1px solid #3a3a3c;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .modal h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+    .modal p {
+      margin: 8px 0;
+      color: #818384;
+      font-size: 14px;
+    }
+    .modal .final-score {
+      font-size: 48px;
+      font-weight: 700;
+      color: #9333ea;
+      margin: 16px 0;
+    }
+    .modal .stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin: 16px 0;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #818384;
+    }
+    .modal .next-word {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #3a3a3c;
+    }
+    .modal .next-word-label {
+      font-size: 12px;
+      color: #818384;
+      margin-bottom: 4px;
+    }
+    .modal .next-word-timer {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+    .modal button {
+      padding: 14px 24px;
+      background: var(--selected);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal button:hover {
+      opacity: 0.9;
+    }
+    #postNostrBtn {
+      background: #8b5cf6;
+    }
+    #playAgainBtn {
+      background: #22c55e;
+    }
+    /* Start Screen */
+    .start-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .start-screen.hidden {
+      display: none;
+    }
+    .start-content {
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .start-title {
+      font-size: 36px;
+      font-weight: 900;
+      color: #9333ea;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    .start-description {
+      color: #818384;
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .start-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .start-btn {
+      width: 100%;
+      padding: 16px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .start-btn:hover {
+      opacity: 0.9;
+    }
+    .start-btn:active {
+      transform: translateY(1px);
+    }
+    .start-btn-primary {
+      background: #9333ea;
+      color: white;
+    }
+    .start-btn-secondary {
+      background: #2a2a2b;
+      color: white;
+      border: 1px solid #3a3a3c;
+    }
+    .start-btn-secondary.hidden {
+      display: none;
+    }
+    .start-footer {
+      margin-top: 24px;
+      font-size: 12px;
+    }
+    .start-footer a {
+      color: #9333ea;
+      text-decoration: none;
+    }
+    .start-footer a:hover {
+      text-decoration: underline;
+    }
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      transition: opacity 0.3s ease;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-content {
+      text-align: center;
+    }
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #3a3a3c;
+      border-top-color: #9333ea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 16px;
+      color: #818384;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <button id="nostrAvatarBubble" class="avatar-bubble" aria-label="Nostr identity">🟢</button>
+      <div id="nostrAvatarDropdown" class="avatar-dropdown">
+        <div id="nostrAvatarLabel" class="avatar-label">Session: loading...</div>
+        <button class="nostr-btn nostrLoginBtn">Login with Nostr (NIP-07)</button>
+        <button id="keysOpenBtn" class="nostr-btn">View keys</button>
+        <button id="keysCopyBtn" class="nostr-btn session-only">Copy session nsec</button>
+        <button id="keysQrBtn" class="nostr-btn session-only">Show session QR</button>
+        <input id="keysImportInput" class="nostr-input session-only" placeholder="Paste nsec to import">
+        <button id="keysImportBtn" class="nostr-btn session-only">Import nsec</button>
+        <button id="keysNewPlayerBtn" class="nostr-btn">New player</button>
+      </div>
+    </div>
+    <div class="title">JUMBLE</div>
+    <div class="header-right">
+      <div class="timer-display" id="timerDisplay">1:30</div>
+      <div class="score-display" id="scoreDisplay">0</div>
+      <div class="jumbles-display" id="jumblesDisplay">Jumbles: 4</div>
+    </div>
+  </div>
+
+  <div class="game-container">
+    <div class="current-word" id="currentWord">&nbsp;</div>
+    <div class="board" id="board"></div>
+    <div class="controls">
+      <button class="control-btn submit-btn" id="submitBtn">Submit Word</button>
+      <button class="control-btn clear-btn" id="clearBtn">Clear</button>
+      <button class="control-btn jumble-btn" id="jumbleBtn">Jumble (2)</button>
+    </div>
+    <div class="word-list" id="wordList">
+      <div class="word-list-title">Words Found: <span id="wordCount">0</span></div>
+      <div class="word-list-items" id="wordListItems"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toasts"></div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading dictionary...</div>
+    </div>
+  </div>
+
+  <div class="start-screen hidden" id="startScreen">
+    <div class="start-content">
+      <div class="start-title">JUMBLE</div>
+      <p class="start-description">Find words in the 5×5 grid by connecting adjacent letters. Score points and beat the clock!</p>
+      <div class="start-buttons">
+        <button class="start-btn start-btn-primary" id="startGameBtn">START GAME</button>
+        <button class="start-btn start-btn-secondary hidden" id="loginExtensionBtn">Login with Extension</button>
+      </div>
+      <div class="start-footer">
+        <a href="https://otherstuff.ai" target="_blank">Vibed with Love. otherstuff.ai</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal">
+      <h2 id="modalTitle">Game Complete!</h2>
+      <p id="modalMessage">Great job finding words!</p>
+      <div class="final-score" id="finalScore">0</div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-value" id="statWords">0</span>
+          <span class="stat-label">Words</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statLongest">0</span>
+          <span class="stat-label">Longest</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statJumbles">0</span>
+          <span class="stat-label">Jumbles Used</span>
+        </div>
+      </div>
+      <div class="next-word">
+        <div class="next-word-label">NEXT PUZZLE</div>
+        <div class="next-word-timer" id="modalTimer">--:--:--</div>
+      </div>
+      <div class="modal-buttons">
+        <button id="shareBtn">Share</button>
+        <button id="postNostrBtn">Post to Nostr</button>
+        <button id="playAgainBtn">Play Again</button>
+      </div>
+      <div id="postStatus" style="margin-top:8px; font-size:12px; color:#818384;"></div>
+    </div>
+  </div>
+
+  <div id="keysModal">
+    <div id="keysModalInner">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-weight:700; font-size:14px;">Session Keys</div>
+        <button id="keysModalClose" class="nostr-btn" style="width:auto; padding:8px 12px; margin:0;">Close</button>
+      </div>
+      <div id="keysModalNpub"></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div id="keysModalNsec" style="flex:1;"></div>
+        <button id="keysModalToggle" class="nostr-btn" aria-label="Reveal private key">👁</button>
+      </div>
+      <div id="keysModalNote" style="font-size:11px; color:#818384; margin-top:8px;"></div>
+      <div id="keysQrContainer"></div>
+    </div>
+  </div>
+
+  <script src="js/nostr-session.js"></script>
+  <script src="js/nostr-signers.js"></script>
+  <script src="js/nostr-post.js"></script>
+  <script src="js/nostr-ui.js"></script>
+  <script>
+    // ============================================
+    // JUMBLE WORD 5x5 - Game Engine
+    // ============================================
+
+    // Game constants
+    const GRID_SIZE = 5;
+    const TOTAL_TILES = 25;
+    const MIN_WORD_LENGTH = 3;
+    const MAX_JUMBLES = 2;
+    const GAME_DURATION = 90; // 90 seconds starting time
+    const POINTS_BY_LENGTH = {
+      3: 21,
+      4: 256,
+      5: 615,
+      6: 2100,
+      7: 21256,
+      8: 212121  // 8+ letters
+    };
+    // Time bonuses (in seconds) for finding words
+    const TIME_BONUS_SHORT = 2.1;   // 3-4 letter words
+    const TIME_BONUS_MEDIUM = 6.15; // 5-6 letter words
+    const TIME_BONUS_LONG = 21;     // 7+ letter words
+
+    function getWordPoints(wordLength) {
+      if (wordLength >= 8) return POINTS_BY_LENGTH[8];
+      return POINTS_BY_LENGTH[wordLength] || 0;
+    }
+
+    function getTimeBonus(wordLength) {
+      if (wordLength >= 7) return TIME_BONUS_LONG;
+      if (wordLength >= 5) return TIME_BONUS_MEDIUM;
+      return TIME_BONUS_SHORT; // 3-4 letter words
+    }
+
+    // Special bonus words
+    const SATS_BONUS_WORDS = ['NOSTR', 'BITCOIN', 'SATS', 'SATOSHI', 'SATOSHIS'];
+    const SATS_BONUS_POINTS = 21256;
+
+    const NUM_GRIDS = 1000;
+    const GRID_SALT = 'jumbleword-v1';
+
+    // Letter frequency distribution (weighted for playability)
+    const LETTER_WEIGHTS = {
+      'A': 8.2, 'B': 1.5, 'C': 2.8, 'D': 4.3, 'E': 12.7, 'F': 2.2,
+      'G': 2.0, 'H': 6.1, 'I': 7.0, 'J': 0.15, 'K': 0.77, 'L': 4.0,
+      'M': 2.4, 'N': 6.7, 'O': 7.5, 'P': 1.9, 'Q': 0.095, 'R': 6.0,
+      'S': 6.3, 'T': 9.1, 'U': 2.8, 'V': 0.98, 'W': 2.4, 'X': 0.15,
+      'Y': 2.0, 'Z': 0.074
+    };
+
+    // Build cumulative distribution for weighted random selection
+    const LETTERS = Object.keys(LETTER_WEIGHTS);
+    const CUMULATIVE_WEIGHTS = [];
+    let cumSum = 0;
+    for (const letter of LETTERS) {
+      cumSum += LETTER_WEIGHTS[letter];
+      CUMULATIVE_WEIGHTS.push(cumSum);
+    }
+    const TOTAL_WEIGHT = cumSum;
+
+    // Dictionary (loaded async)
+    let DICTIONARY = new Set();
+
+    // Game state
+    let state = {
+      grid: [], // 25 letters, row-major order
+      selectedPath: [], // array of {row, col} indices
+      score: 0,
+      jumblesRemaining: MAX_JUMBLES,
+      wordsFound: [],
+      longestWord: '',
+      gameOver: false,
+      dayKey: '',
+      gridIndex: 0,
+      history: [], // tracks sequence of events: {type: 'word', length: n} or {type: 'jumble'}
+      timeRemaining: GAME_DURATION // seconds remaining
+    };
+
+    let gameTimerInterval = null;
+
+    // DOM elements
+    const boardEl = document.getElementById('board');
+    const currentWordEl = document.getElementById('currentWord');
+    const scoreDisplayEl = document.getElementById('scoreDisplay');
+    const jumblesDisplayEl = document.getElementById('jumblesDisplay');
+    const timerDisplayEl = document.getElementById('timerDisplay');
+    const submitBtn = document.getElementById('submitBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const jumbleBtn = document.getElementById('jumbleBtn');
+    const wordListItemsEl = document.getElementById('wordListItems');
+    const wordCountEl = document.getElementById('wordCount');
+    const toastsEl = document.getElementById('toasts');
+    const resultModal = document.getElementById('resultModal');
+
+    // ============================================
+    // Seeded Random Number Generator (mulberry32)
+    // ============================================
+    function createRNG(seed) {
+      return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // Simple hash function for strings
+    function hashString(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return Math.abs(hash);
+    }
+
+    // SHA256-like deterministic hash (simple version for grid selection)
+    async function sha256Hash(message) {
+      const msgBuffer = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ============================================
+    // Grid Generation
+    // ============================================
+    function getRandomLetter(rng) {
+      const r = rng() * TOTAL_WEIGHT;
+      for (let i = 0; i < LETTERS.length; i++) {
+        if (r < CUMULATIVE_WEIGHTS[i]) {
+          return LETTERS[i];
+        }
+      }
+      return 'E'; // fallback
+    }
+
+    function generateGrid(seed) {
+      const rng = createRNG(seed);
+      const grid = [];
+      for (let i = 0; i < TOTAL_TILES; i++) {
+        grid.push(getRandomLetter(rng));
+      }
+      return grid;
+    }
+
+    // Get today's date key (UTC)
+    function getDayKey() {
+      const now = new Date();
+      const year = now.getUTCFullYear();
+      const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(now.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // Get grid index for a day
+    async function getGridIndexForDay(dayKey) {
+      const hashInput = dayKey + '|' + GRID_SALT;
+      const hash = await sha256Hash(hashInput);
+      // Use first 8 hex chars as number
+      const num = parseInt(hash.substring(0, 8), 16);
+      return num % NUM_GRIDS;
+    }
+
+    // Get starting grid for a specific index
+    function getStartingGrid(gridIndex) {
+      // Generate deterministically using grid index as seed
+      const seed = hashString(`grid-${gridIndex}-${GRID_SALT}`);
+      return generateGrid(seed);
+    }
+
+    // ============================================
+    // Dictionary Loading
+    // ============================================
+    async function loadDictionary() {
+      try {
+        const response = await fetch('assets/dictionary.txt');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        const words = text.split('\n')
+          .map(w => w.trim().toUpperCase())
+          .filter(w => w.length >= MIN_WORD_LENGTH);
+        DICTIONARY = new Set(words);
+        // Add special bonus words to dictionary
+        SATS_BONUS_WORDS.forEach(w => DICTIONARY.add(w));
+        console.log(`Loaded ${DICTIONARY.size} words. Sample: THE=${DICTIONARY.has('THE')}, BITCOIN=${DICTIONARY.has('BITCOIN')}`);
+      } catch (e) {
+        console.error('Failed to load dictionary:', e);
+        // Fallback to basic word list
+        DICTIONARY = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAT', 'DOG', 'RUN', 'SET', 'GET', 'HAS', 'WAS', 'HAD', 'HIS', 'HER', 'HIM', 'SHE', 'HER', 'OUT', 'CAN', 'MAY', 'DAY', 'WAY', 'SAY', 'NEW', 'NOW', 'OLD', 'SEE', 'TIME', 'VERY', 'WHEN', 'COME', 'MADE', 'FIND', 'LONG', 'DOWN', 'JUST', 'OVER', 'SUCH', 'INTO', 'YEAR', 'YOUR', 'SOME', 'THEM', 'THAN', 'THIS', 'WORD', 'WHAT']);
+        console.log('Using fallback dictionary');
+      }
+    }
+
+    // ============================================
+    // Adjacency and Path Validation
+    // ============================================
+    function getIndex(row, col) {
+      return row * GRID_SIZE + col;
+    }
+
+    function getRowCol(index) {
+      return { row: Math.floor(index / GRID_SIZE), col: index % GRID_SIZE };
+    }
+
+    function areAdjacent(pos1, pos2) {
+      const rowDiff = Math.abs(pos1.row - pos2.row);
+      const colDiff = Math.abs(pos1.col - pos2.col);
+      return rowDiff <= 1 && colDiff <= 1 && (rowDiff + colDiff > 0);
+    }
+
+    function isInPath(row, col) {
+      return state.selectedPath.some(p => p.row === row && p.col === col);
+    }
+
+    function getSelectedWord() {
+      return state.selectedPath.map(p => state.grid[getIndex(p.row, p.col)]).join('');
+    }
+
+    function isValidWord(word) {
+      return word.length >= MIN_WORD_LENGTH && DICTIONARY.has(word);
+    }
+
+    // ============================================
+    // Board Rendering
+    // ============================================
+    function renderBoard(newLetterPositions = new Set()) {
+      boardEl.innerHTML = '';
+      for (let i = 0; i < TOTAL_TILES; i++) {
+        const { row, col } = getRowCol(i);
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.textContent = state.grid[i];
+        tile.dataset.row = row;
+        tile.dataset.col = col;
+
+        if (isInPath(row, col)) {
+          tile.classList.add('selected');
+          const pathIndex = state.selectedPath.findIndex(p => p.row === row && p.col === col);
+          if (pathIndex === state.selectedPath.length - 1) {
+            tile.classList.add('last-selected');
+          }
+        }
+
+        // Animate new letters dropping in
+        if (newLetterPositions.has(i)) {
+          tile.classList.add('new-letter');
+        }
+
+        boardEl.appendChild(tile);
+      }
+      setupTileListeners();
+    }
+
+    function updateCurrentWord() {
+      const word = getSelectedWord();
+      currentWordEl.textContent = word || '\u00A0';
+      currentWordEl.classList.remove('valid', 'invalid');
+
+      if (word.length >= MIN_WORD_LENGTH) {
+        if (isValidWord(word)) {
+          currentWordEl.classList.add('valid');
+        } else {
+          currentWordEl.classList.add('invalid');
+        }
+      }
+    }
+
+    function updateUI() {
+      scoreDisplayEl.textContent = state.score;
+      jumblesDisplayEl.textContent = `Jumbles: ${state.jumblesRemaining}`;
+      jumbleBtn.textContent = `Jumble (${state.jumblesRemaining})`;
+      jumbleBtn.disabled = state.jumblesRemaining <= 0 || state.gameOver;
+      wordCountEl.textContent = state.wordsFound.length;
+
+      submitBtn.disabled = state.gameOver;
+      clearBtn.disabled = state.gameOver;
+
+      // Render word list
+      wordListItemsEl.innerHTML = '';
+      state.wordsFound.forEach(word => {
+        const span = document.createElement('span');
+        span.className = 'word-item';
+        span.textContent = word;
+        wordListItemsEl.appendChild(span);
+      });
+    }
+
+    // ============================================
+    // Tile Selection Logic
+    // ============================================
+    let isAnimating = false;
+    let dragState = {
+      active: false,
+      isDragging: false,  // true once we've moved enough
+      startX: 0,
+      startY: 0,
+      startTile: null
+    };
+
+    function getTileFromPoint(x, y) {
+      // First try direct element lookup
+      const element = document.elementFromPoint(x, y);
+      if (element && element.classList.contains('tile')) {
+        return {
+          row: parseInt(element.dataset.row),
+          col: parseInt(element.dataset.col)
+        };
+      }
+
+      // Fallback: calculate tile from board position (more reliable on mobile)
+      const boardEl = document.getElementById('board');
+      if (!boardEl) return null;
+
+      const rect = boardEl.getBoundingClientRect();
+      const padding = 10;
+      const gap = 6;
+      // Calculate tile size dynamically from board width
+      const boardContentWidth = rect.width - (padding * 2);
+      const cellSize = boardContentWidth / GRID_SIZE;
+      const tileSize = cellSize - gap;
+
+      // Calculate position relative to board content area
+      const relX = x - rect.left - padding;
+      const relY = y - rect.top - padding;
+
+      // Calculate which tile
+      const col = Math.floor(relX / cellSize);
+      const row = Math.floor(relY / cellSize);
+
+      // Check bounds
+      if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+        // Check if we're actually on a tile (not in the gap)
+        const tileX = relX - col * cellSize;
+        const tileY = relY - row * cellSize;
+        // Be generous with hit detection for mobile
+        if (tileX >= -gap/2 && tileX <= tileSize + gap/2 &&
+            tileY >= -gap/2 && tileY <= tileSize + gap/2) {
+          return { row, col };
+        }
+      }
+      return null;
+    }
+
+    function startDragSelection(row, col) {
+      state.selectedPath = [{ row, col }];
+      renderBoard();
+      updateCurrentWord();
+    }
+
+    function addTileToDrag(row, col) {
+      if (state.selectedPath.length === 0) {
+        state.selectedPath = [{ row, col }];
+        renderBoard();
+        updateCurrentWord();
+        return;
+      }
+
+      const lastPos = state.selectedPath[state.selectedPath.length - 1];
+
+      // Same tile - ignore
+      if (lastPos.row === row && lastPos.col === col) return;
+
+      // Check if going back (deselecting)
+      if (state.selectedPath.length > 1) {
+        const prevPos = state.selectedPath[state.selectedPath.length - 2];
+        if (prevPos.row === row && prevPos.col === col) {
+          state.selectedPath.pop();
+          renderBoard();
+          updateCurrentWord();
+          return;
+        }
+      }
+
+      // Check if already in path - ignore (can't jump in drag mode)
+      if (isInPath(row, col)) return;
+
+      // Check adjacency - add to path
+      if (areAdjacent(lastPos, { row, col })) {
+        state.selectedPath.push({ row, col });
+        renderBoard();
+        updateCurrentWord();
+      }
+    }
+
+    function tryAutoSubmit() {
+      const word = getSelectedWord();
+      if (word.length >= MIN_WORD_LENGTH && isValidWord(word) && !state.wordsFound.includes(word)) {
+        submitWord();
+        return true;
+      }
+      return false;
+    }
+
+    // Handle a tap on a tile (tap mode for building words)
+    function handleTap(row, col) {
+      if (state.gameOver || isAnimating) return;
+
+      // If no selection, start new one
+      if (state.selectedPath.length === 0) {
+        state.selectedPath = [{ row, col }];
+        renderBoard();
+        updateCurrentWord();
+        return;
+      }
+
+      const lastPos = state.selectedPath[state.selectedPath.length - 1];
+
+      // Tapping the last selected tile - try to submit
+      if (lastPos.row === row && lastPos.col === col) {
+        if (!tryAutoSubmit()) {
+          // Can't submit - clear selection
+          state.selectedPath = [];
+          renderBoard();
+          updateCurrentWord();
+        }
+        return;
+      }
+
+      // Check if going back (tapping second-to-last)
+      if (state.selectedPath.length > 1) {
+        const prevPos = state.selectedPath[state.selectedPath.length - 2];
+        if (prevPos.row === row && prevPos.col === col) {
+          state.selectedPath.pop();
+          renderBoard();
+          updateCurrentWord();
+          return;
+        }
+      }
+
+      // Check if tapping earlier in path - truncate
+      const pathIndex = state.selectedPath.findIndex(p => p.row === row && p.col === col);
+      if (pathIndex !== -1) {
+        state.selectedPath = state.selectedPath.slice(0, pathIndex + 1);
+        renderBoard();
+        updateCurrentWord();
+        return;
+      }
+
+      // Check if adjacent - add to path
+      if (areAdjacent(lastPos, { row, col })) {
+        state.selectedPath.push({ row, col });
+        renderBoard();
+        updateCurrentWord();
+        return;
+      }
+
+      // Not adjacent, not in path - start new selection
+      state.selectedPath = [{ row, col }];
+      renderBoard();
+      updateCurrentWord();
+    }
+
+    let globalListenersAdded = false;
+
+    function setupTileListeners() {
+      const tiles = boardEl.querySelectorAll('.tile');
+
+      tiles.forEach(tile => {
+        const row = parseInt(tile.dataset.row);
+        const col = parseInt(tile.dataset.col);
+
+        // Mouse down - prepare for potential drag
+        tile.addEventListener('mousedown', (e) => {
+          if (state.gameOver || isAnimating) return;
+          e.preventDefault();
+          dragState.active = true;
+          dragState.isDragging = false;
+          dragState.startX = e.clientX;
+          dragState.startY = e.clientY;
+          dragState.startTile = { row, col };
+        });
+
+        // Mouse enter while dragging
+        tile.addEventListener('mouseenter', (e) => {
+          if (!dragState.active || state.gameOver || isAnimating) return;
+
+          // If we entered a different tile, we're definitely dragging
+          if (dragState.startTile && (dragState.startTile.row !== row || dragState.startTile.col !== col)) {
+            if (!dragState.isDragging) {
+              // First move - start the drag selection from start tile
+              dragState.isDragging = true;
+              startDragSelection(dragState.startTile.row, dragState.startTile.col);
+            }
+            addTileToDrag(row, col);
+          }
+        });
+      });
+
+      // Only add global listeners once
+      if (!globalListenersAdded) {
+        globalListenersAdded = true;
+
+        // Mouse up - end interaction
+        document.addEventListener('mouseup', (e) => {
+          if (!dragState.active) return;
+
+          const wasDragging = dragState.isDragging;
+          dragState.active = false;
+          dragState.isDragging = false;
+
+          if (wasDragging) {
+            // Was dragging - try to submit
+            tryAutoSubmit();
+          } else if (dragState.startTile) {
+            // Was a tap - use tap handler
+            handleTap(dragState.startTile.row, dragState.startTile.col);
+          }
+        });
+
+        // Touch start - prepare for potential drag
+        boardEl.addEventListener('touchstart', (e) => {
+          if (state.gameOver || isAnimating) return;
+          e.preventDefault();
+          const touch = e.touches[0];
+          const tile = getTileFromPoint(touch.clientX, touch.clientY);
+          if (tile) {
+            dragState.active = true;
+            dragState.isDragging = false;
+            dragState.startX = touch.clientX;
+            dragState.startY = touch.clientY;
+            dragState.startTile = tile;
+          }
+        }, { passive: false });
+
+        // Touch move - check for drag
+        boardEl.addEventListener('touchmove', (e) => {
+          if (!dragState.active || state.gameOver || isAnimating) return;
+          e.preventDefault();
+          const touch = e.touches[0];
+
+          // Check if moved enough to count as drag (10px threshold for mobile)
+          const dx = touch.clientX - dragState.startX;
+          const dy = touch.clientY - dragState.startY;
+
+          if (!dragState.isDragging && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+            // Start dragging
+            dragState.isDragging = true;
+            if (dragState.startTile) {
+              startDragSelection(dragState.startTile.row, dragState.startTile.col);
+            }
+          }
+
+          if (dragState.isDragging) {
+            const tile = getTileFromPoint(touch.clientX, touch.clientY);
+            if (tile) {
+              addTileToDrag(tile.row, tile.col);
+            }
+          }
+        }, { passive: false });
+
+        // Touch end - finish interaction
+        boardEl.addEventListener('touchend', (e) => {
+          if (!dragState.active) return;
+          e.preventDefault();
+
+          const wasDragging = dragState.isDragging;
+          dragState.active = false;
+          dragState.isDragging = false;
+
+          if (wasDragging) {
+            // Was dragging - try to submit
+            tryAutoSubmit();
+          } else if (dragState.startTile) {
+            // Was a tap
+            handleTap(dragState.startTile.row, dragState.startTile.col);
+          }
+        }, { passive: false });
+      }
+    }
+
+    // ============================================
+    // Word Submission
+    // ============================================
+    function submitWord() {
+      if (state.gameOver) return;
+
+      const word = getSelectedWord();
+      console.log('Submitting word:', word, 'Valid:', DICTIONARY.has(word), 'Dict size:', DICTIONARY.size);
+
+      if (word.length < MIN_WORD_LENGTH) {
+        showToast('Word too short (min 3 letters)');
+        shakeBoard();
+        return;
+      }
+
+      if (!isValidWord(word)) {
+        showToast(`"${word}" not in dictionary`);
+        shakeBoard();
+        return;
+      }
+
+      if (state.wordsFound.includes(word)) {
+        showToast('Already found!');
+        shakeBoard();
+        return;
+      }
+
+      // Valid word - score it and add time
+      const isSatsBonus = SATS_BONUS_WORDS.includes(word);
+      const basePoints = getWordPoints(word.length);
+      const bonusPoints = isSatsBonus ? SATS_BONUS_POINTS : 0;
+      const totalPoints = basePoints + bonusPoints;
+      const timeBonus = getTimeBonus(word.length);
+
+      state.score += totalPoints;
+      state.timeRemaining += timeBonus;
+      state.wordsFound.push(word);
+      state.history.push({ type: 'word', length: word.length, satsBonus: isSatsBonus });
+      console.log('Word accepted! Score:', state.score, 'Time bonus:', timeBonus, 'Words found:', state.wordsFound.length);
+
+      // Update timer display immediately to show new time
+      updateTimerDisplay();
+
+      if (word.length > state.longestWord.length) {
+        state.longestWord = word;
+      }
+
+      if (isSatsBonus) {
+        showSatsBonus(word);
+      } else {
+        const timeBonusText = timeBonus >= 1 ? `+${timeBonus}s` : `+${timeBonus.toFixed(1)}s`;
+        showToast(`+${totalPoints} pts ${timeBonusText}`);
+      }
+
+      // Prevent new selections during animation
+      isAnimating = true;
+
+      // Show success animation on selected tiles
+      const tiles = boardEl.querySelectorAll('.tile');
+      state.selectedPath.forEach(p => {
+        const idx = getIndex(p.row, p.col);
+        tiles[idx].classList.remove('selected', 'last-selected');
+        tiles[idx].classList.add(isSatsBonus ? 'sats-bonus' : 'success');
+      });
+
+      // Save the path before animation completes (for tile removal)
+      const pathToRemove = [...state.selectedPath];
+
+      // Wait for animation, then refill
+      setTimeout(() => {
+        // Clear selection display
+        state.selectedPath = [];
+        currentWordEl.textContent = '\u00A0';
+        currentWordEl.classList.remove('valid', 'invalid');
+
+        removeTilesAndRefill(pathToRemove);
+        updateUI();
+        saveState();
+
+        // Allow new selections after drop animation
+        setTimeout(() => {
+          isAnimating = false;
+        }, 400);
+      }, 600);
+    }
+
+    function clearSelection() {
+      state.selectedPath = [];
+      renderBoard();
+      updateCurrentWord();
+    }
+
+    function shakeBoard() {
+      boardEl.classList.add('shake');
+      setTimeout(() => boardEl.classList.remove('shake'), 300);
+    }
+
+    // ============================================
+    // Grid Refill Mechanics
+    // ============================================
+    function removeTilesAndRefill(path) {
+      // Mark positions to remove
+      const removeIndices = path.map(p => getIndex(p.row, p.col));
+
+      // Track which positions will get new letters
+      const newLetterPositions = new Set();
+
+      // Set removed tiles to null
+      removeIndices.forEach(idx => {
+        state.grid[idx] = null;
+      });
+
+      // Apply gravity (column by column)
+      for (let col = 0; col < GRID_SIZE; col++) {
+        // Collect non-null values in this column (bottom to top)
+        const colValues = [];
+        for (let row = GRID_SIZE - 1; row >= 0; row--) {
+          const idx = getIndex(row, col);
+          if (state.grid[idx] !== null) {
+            colValues.push(state.grid[idx]);
+          }
+        }
+
+        // Fill column from bottom with existing values, then new random letters
+        for (let row = GRID_SIZE - 1; row >= 0; row--) {
+          const idx = getIndex(row, col);
+          if (colValues.length > 0) {
+            state.grid[idx] = colValues.shift();
+          } else {
+            state.grid[idx] = getRandomLetter(Math.random);
+            newLetterPositions.add(idx);
+          }
+        }
+      }
+
+      renderBoard(newLetterPositions);
+    }
+
+    // ============================================
+    // Jumble Mechanic
+    // ============================================
+    function jumbleGrid() {
+      if (state.jumblesRemaining <= 0 || state.gameOver) return;
+
+      state.jumblesRemaining--;
+      state.history.push({ type: 'jumble' });
+
+      // Replace 5 random letters with new ones
+      const indicesToReplace = [];
+      const allIndices = [...Array(TOTAL_TILES).keys()];
+      for (let i = allIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allIndices[i], allIndices[j]] = [allIndices[j], allIndices[i]];
+      }
+      for (let i = 0; i < 5; i++) {
+        const idx = allIndices[i];
+        indicesToReplace.push(idx);
+        state.grid[idx] = getRandomLetter(Math.random);
+      }
+
+      // Shuffle all letters using Fisher-Yates
+      const letters = [...state.grid];
+      for (let i = letters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [letters[i], letters[j]] = [letters[j], letters[i]];
+      }
+      state.grid = letters;
+
+      state.selectedPath = [];
+      renderBoard();
+      updateCurrentWord();
+      updateUI();
+      saveState();
+
+      showToast(`Jumbled! ${state.jumblesRemaining} remaining`);
+    }
+
+    // ============================================
+    // Game End
+    // ============================================
+    function completeGame() {
+      if (state.gameOver) return;
+
+      stopGameTimer();
+      state.gameOver = true;
+      saveState();
+      showResult();
+    }
+
+    function resetGame() {
+      // Reset to fresh starting grid
+      state.grid = getStartingGrid(state.gridIndex);
+      state.selectedPath = [];
+      state.score = 0;
+      state.jumblesRemaining = MAX_JUMBLES;
+      state.wordsFound = [];
+      state.longestWord = '';
+      state.history = [];
+      state.gameOver = false;
+      state.timeRemaining = GAME_DURATION;
+
+      // Clear saved state
+      localStorage.removeItem('jumble-game');
+
+      // Update UI
+      renderBoard();
+      currentWordEl.textContent = '\u00A0';
+      currentWordEl.classList.remove('valid', 'invalid');
+      updateUI();
+
+      // Hide modal and show start screen
+      resultModal.classList.remove('visible');
+      gameStarted = false;
+      showStartScreen();
+    }
+
+    function showResult() {
+      document.getElementById('modalTitle').textContent = 'Game Complete!';
+      document.getElementById('modalMessage').textContent = getResultMessage();
+      document.getElementById('finalScore').textContent = state.score;
+      document.getElementById('statWords').textContent = state.wordsFound.length;
+      document.getElementById('statLongest').textContent = state.longestWord.length || 0;
+      document.getElementById('statJumbles').textContent = MAX_JUMBLES - state.jumblesRemaining;
+
+      resultModal.classList.add('visible');
+      updateModalTimer();
+    }
+
+    function getResultMessage() {
+      const words = state.wordsFound.length;
+      if (words >= 20) return 'Word Master!';
+      if (words >= 15) return 'Excellent vocabulary!';
+      if (words >= 10) return 'Great job!';
+      if (words >= 5) return 'Nice work!';
+      return 'Good effort!';
+    }
+
+    // ============================================
+    // Game Timer (90s start, extends with words)
+    // ============================================
+    function formatGameTime(seconds) {
+      if (seconds <= 0) return '0:00';
+      const totalSecs = Math.floor(seconds);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+      timerDisplayEl.textContent = formatGameTime(state.timeRemaining);
+
+      // Visual feedback for low time
+      timerDisplayEl.classList.remove('warning', 'critical');
+      if (state.timeRemaining <= 10) {
+        timerDisplayEl.classList.add('critical');
+      } else if (state.timeRemaining <= 30) {
+        timerDisplayEl.classList.add('warning');
+      }
+    }
+
+    function startGameTimer() {
+      // Clear any existing timer
+      if (gameTimerInterval) {
+        clearInterval(gameTimerInterval);
+      }
+
+      updateTimerDisplay();
+
+      gameTimerInterval = setInterval(() => {
+        if (state.gameOver) {
+          clearInterval(gameTimerInterval);
+          return;
+        }
+
+        state.timeRemaining--;
+        updateTimerDisplay();
+        saveState();
+
+        if (state.timeRemaining <= 0) {
+          clearInterval(gameTimerInterval);
+          showToast("Time's up!");
+          completeGame();
+        }
+      }, 1000);
+    }
+
+    function stopGameTimer() {
+      if (gameTimerInterval) {
+        clearInterval(gameTimerInterval);
+        gameTimerInterval = null;
+      }
+    }
+
+    // ============================================
+    // Next Puzzle Timer
+    // ============================================
+    function getTimeUntilNextDay() {
+      const now = new Date();
+      const tomorrow = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1
+      ));
+      return tomorrow - now;
+    }
+
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function updateModalTimer() {
+      const modalTimer = document.getElementById('modalTimer');
+      const remaining = getTimeUntilNextDay();
+      modalTimer.textContent = formatTime(remaining);
+    }
+
+    // ============================================
+    // Sharing
+    // ============================================
+    const EMOJI_NUMBERS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+
+    function getEmojiNumber(n) {
+      if (n <= 10) return EMOJI_NUMBERS[n];
+      return `${n}`;
+    }
+
+    function generateShareText() {
+      const puzzleNum = state.gridIndex;
+      let text = `Jumble #${puzzleNum}  🎯 ${state.score}\n\n`;
+
+      // Group consecutive words by length and show jumbles
+      let i = 0;
+      while (i < state.history.length) {
+        const event = state.history[i];
+
+        if (event.type === 'jumble') {
+          text += '🌀\n';
+          i++;
+        } else if (event.type === 'word') {
+          // Check for SATS bonus word
+          if (event.satsBonus) {
+            const orangeSquares = '🟧'.repeat(event.length - 1);
+            text += `${orangeSquares}⚡ SATS BONUS\n`;
+            i++;
+          } else {
+            // Count consecutive non-bonus words of the same length
+            const len = event.length;
+            let count = 0;
+            while (i < state.history.length &&
+                   state.history[i].type === 'word' &&
+                   state.history[i].length === len &&
+                   !state.history[i].satsBonus) {
+              count++;
+              i++;
+            }
+            // Generate squares: orange for all but last, purple for last
+            const orangeSquares = '🟧'.repeat(len - 1);
+            const squares = orangeSquares + '🟪';
+            text += count > 1 ? `${squares} ${getEmojiNumber(count)}\n` : `${squares}\n`;
+          }
+        } else {
+          i++;
+        }
+      }
+
+      text += `\nhttps://jumble.otherstuff.ai`;
+
+      return text.trim();
+    }
+
+    // ============================================
+    // Toast
+    // ============================================
+    function showToast(message, duration = 1500) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      toastsEl.appendChild(toast);
+      setTimeout(() => toast.remove(), duration);
+    }
+
+    function showSatsBonus(word) {
+      const overlay = document.createElement('div');
+      overlay.className = 'sats-bonus-overlay';
+      overlay.innerHTML = `
+        <div class="sats-bonus-content">
+          <div class="sats-bonus-title">⚡ SATS BONUS ⚡</div>
+          <div class="sats-bonus-word">${word}</div>
+          <div class="sats-bonus-points">+${SATS_BONUS_POINTS.toLocaleString()}</div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      setTimeout(() => overlay.remove(), 2000);
+    }
+
+    // ============================================
+    // State Persistence
+    // ============================================
+    function saveState() {
+      const saveData = {
+        dayKey: state.dayKey,
+        gridIndex: state.gridIndex,
+        grid: state.grid,
+        score: state.score,
+        jumblesRemaining: state.jumblesRemaining,
+        wordsFound: state.wordsFound,
+        longestWord: state.longestWord,
+        gameOver: state.gameOver,
+        history: state.history,
+        timeRemaining: state.timeRemaining
+      };
+      localStorage.setItem('jumble-game', JSON.stringify(saveData));
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem('jumble-game');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          // Only restore in-progress games (not completed ones)
+          if (data.dayKey === state.dayKey && !data.gameOver) {
+            state.grid = data.grid;
+            state.score = data.score || 0;
+            state.jumblesRemaining = data.jumblesRemaining ?? MAX_JUMBLES;
+            state.wordsFound = data.wordsFound || [];
+            state.longestWord = data.longestWord || '';
+            state.history = data.history || [];
+            state.timeRemaining = data.timeRemaining ?? GAME_DURATION;
+            state.gameOver = false;
+            return true;
+          }
+        } catch (e) {
+          console.error('Failed to load state:', e);
+        }
+      }
+      return false;
+    }
+
+    // ============================================
+    // Initialization
+    // ============================================
+    let gameStarted = false;
+
+    function showStartScreen() {
+      const startScreen = document.getElementById('startScreen');
+      const loginBtn = document.getElementById('loginExtensionBtn');
+
+      // Check for NIP-07 extension
+      if (window.nostr) {
+        loginBtn.classList.remove('hidden');
+      }
+
+      startScreen.classList.remove('hidden');
+    }
+
+    function hideStartScreen() {
+      const startScreen = document.getElementById('startScreen');
+      startScreen.classList.add('hidden');
+    }
+
+    function beginGame() {
+      if (gameStarted) return;
+      gameStarted = true;
+
+      hideStartScreen();
+
+      // Start game timer if game is not over
+      if (!state.gameOver && state.timeRemaining > 0) {
+        startGameTimer();
+      } else if (state.timeRemaining <= 0) {
+        completeGame();
+      }
+    }
+
+    async function init() {
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const startScreen = document.getElementById('startScreen');
+
+      // Load dictionary
+      await loadDictionary();
+
+      // Hide loading overlay
+      loadingOverlay.classList.add('hidden');
+      setTimeout(() => loadingOverlay.remove(), 300);
+
+      // Get today's puzzle
+      state.dayKey = getDayKey();
+      state.gridIndex = await getGridIndexForDay(state.dayKey);
+
+      // Try to load saved state, or generate new grid
+      const hasExistingGame = loadState();
+      if (!hasExistingGame) {
+        state.grid = getStartingGrid(state.gridIndex);
+        state.score = 0;
+        state.jumblesRemaining = MAX_JUMBLES;
+        state.wordsFound = [];
+        state.longestWord = '';
+        state.history = [];
+        state.gameOver = false;
+        state.timeRemaining = GAME_DURATION;
+      }
+
+      renderBoard();
+      updateUI();
+      updateCurrentWord();
+
+      // Setup start screen buttons
+      document.getElementById('startGameBtn').addEventListener('click', beginGame);
+      document.getElementById('loginExtensionBtn').addEventListener('click', async () => {
+        if (window.nostr && window.NostrSigners) {
+          try {
+            await window.NostrSigners.loginWithExtension();
+            showToast('Logged in with extension!');
+          } catch (e) {
+            showToast('Login failed');
+            console.error(e);
+          }
+        }
+      });
+
+      // If resuming an existing game with time left, skip start screen
+      if (hasExistingGame && state.timeRemaining > 0 && !state.gameOver) {
+        beginGame();
+      } else if (state.gameOver) {
+        // Game was already over, show result
+        hideStartScreen();
+        showResult();
+      } else {
+        // New game - show start screen
+        showStartScreen();
+      }
+
+      // Setup button handlers
+      submitBtn.addEventListener('click', submitWord);
+      clearBtn.addEventListener('click', clearSelection);
+      jumbleBtn.addEventListener('click', jumbleGrid);
+
+      // Share button
+      document.getElementById('shareBtn').addEventListener('click', () => {
+        const text = generateShareText();
+        if (navigator.share) {
+          navigator.share({ text });
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(text);
+          showToast('Copied to clipboard!');
+        }
+      });
+
+      // Play Again button
+      document.getElementById('playAgainBtn').addEventListener('click', resetGame);
+
+      // Post to Nostr button
+      document.getElementById('postNostrBtn').addEventListener('click', async () => {
+        if (!window.NostrPost || !window.NostrSigners) {
+          showToast('Nostr not ready');
+          return;
+        }
+
+        const content = generateShareText();
+
+        if (!confirm(`Post this to Nostr?\n\n${content}`)) return;
+
+        const postStatus = document.getElementById('postStatus');
+        postStatus.textContent = 'Posting...';
+
+        try {
+          const signer = await window.NostrSigners.getActiveSigner();
+          const { SimplePool } = await import('https://esm.sh/nostr-tools@2?bundle');
+          const pool = new SimplePool();
+
+          const relays = window.NostrPost.DEFAULT_RELAYS;
+
+          const unsigned = {
+            kind: 1,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+              ['t', 'jumble'],
+              ['t', 'wordgame'],
+              ['game', 'jumble'],
+              ['puzzle', String(state.gridIndex)],
+              ['score', String(state.score)]
+            ],
+            content
+          };
+
+          const signed = await signer.signEvent(unsigned);
+          const pub = pool.publish(relays, signed);
+
+          await new Promise((resolve) => {
+            let done = 0;
+            pub.on('ok', () => { done++; if (done >= 1) resolve(); });
+            pub.on('failed', () => { done++; if (done >= relays.length) resolve(); });
+            setTimeout(resolve, 3000);
+          });
+
+          try { pool.close(relays); } catch (_) {}
+
+          postStatus.textContent = `Posted via ${signer.mode}`;
+          showToast('Posted to Nostr!');
+        } catch (e) {
+          console.error('Nostr post failed:', e);
+          postStatus.textContent = `Failed: ${e.message || e}`;
+          showToast('Post failed');
+        }
+      });
+
+      // Close modal on outside click
+      resultModal.addEventListener('click', (e) => {
+        if (e.target === resultModal) {
+          resultModal.classList.remove('visible');
+        }
+      });
+
+      // Update timer every second
+      setInterval(() => {
+        updateModalTimer();
+        // Check for new day
+        const currentDay = getDayKey();
+        if (currentDay !== state.dayKey) {
+          location.reload();
+        }
+      }, 1000);
+    }
+
+    init();
+  </script>
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="089e2b46-78c3-4878-bda4-9f09b841eb20"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+</body>
+</html>

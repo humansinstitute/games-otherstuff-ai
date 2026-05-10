@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Games - OtherStuff</title>
+  <link rel="icon" type="image/png" href="./images/icon.png">
+  <link rel="apple-touch-icon" href="./images/icon.png">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #0c0f1a;
+      color: #f8f8f8;
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .hero-logo {
+      max-width: 160px;
+      width: 36%;
+      height: auto;
+    }
+
+    .hero-title {
+      margin: 12px 0 0;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+
+    .hero-sub {
+      margin: 8px 0 0;
+      color: #9aa3b8;
+      font-size: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      background: #161b2e;
+      border-radius: 14px;
+      overflow: hidden;
+      text-decoration: none;
+      color: #f8f8f8;
+      transition: transform 150ms ease, box-shadow 150ms ease;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    .card-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      background: #1a2040;
+    }
+
+    .card-placeholder {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #1a2040, #252d4a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: #3a4570;
+    }
+
+    .card-body {
+      padding: 14px 16px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .card-desc {
+      margin-top: 4px;
+      font-size: 13px;
+      color: #8a93ab;
+      line-height: 1.4;
+    }
+
+    .footer {
+      margin-top: 48px;
+      text-align: center;
+      padding: 18px 12px;
+      background: #001844;
+      border-radius: 10px;
+    }
+
+    .footer a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 15px;
+    }
+
+    @media (max-width: 640px) {
+      .grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 14px;
+      }
+      .hero-title { font-size: 24px; }
+      .hero-sub { font-size: 14px; }
+      .card-body { padding: 10px 12px; }
+      .card-title { font-size: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <img src="./images/logo.png" alt="Other Stuff logo" class="hero-logo">
+      <h1 class="hero-title">Games</h1>
+      <p class="hero-sub">A collection of little interactive amusements, vibed with love.</p>
+    </header>
+
+    <div class="grid" id="grid"></div>
+
+    <footer class="footer">
+      <a href="https://OtherStuff.ai" target="_blank" rel="noopener noreferrer">OtherStuff.ai</a>
+    </footer>
+  </main>
+
+  <script>
+    const games = [
+      { folder: "block_breaker", title: "Neon Block Breaker", icon: "blocks.png", desc: "A classic take on breakout." },
+      { folder: "bullrun", title: "Bull Run", icon: "bullrun.png", desc: "Run with the bulls." },
+      { folder: "chess", title: "Chesstr", icon: "chesstr.png", desc: "Play chess." },
+      { folder: "crush", title: "Crush", icon: "crush.png", desc: "Candy crush style matching." },
+      { folder: "donkey", title: "Cowkey Kong", icon: "cowkey.png", desc: "Cows, keys, and platforming." },
+      { folder: "dragon", title: "Dragon Brawl", icon: "dragon.png", desc: "Side scrolling beat 'em up." },
+      { url: "https://dumpling.otherstuff.ai", title: "Dumpling Town", desc: "A cute life simulation game." },
+      { folder: "flappy", title: "Flappy Bird", icon: "flappy.jpg", desc: "Flap through the gaps." },
+      { folder: "frogger", title: "Frogger 3D", icon: "frogger.png", desc: "Avoid the cars in 3D." },
+      { folder: "hangtime", title: "Hangtime", icon: "hangtime_icon.png", desc: "Take the clouds, avoid the cows." },
+      { folder: "herder", title: "Shepherd's Path", icon: "herder.png", desc: "Get the sheep in the pen." },
+      { folder: "jumble", title: "Jumble", icon: "jumble.png", desc: "Find words against the clock." },
+      { folder: "lemmings", title: "Lemmings", icon: "lemmings.png", desc: "Get the lemmings home." },
+      { folder: "minotaurgame", title: "Minotaur Labyrinth", icon: "minotaur.png", desc: "Escape the minotaur." },
+      { folder: "Oil-Wells", title: "Oil's Well", icon: "miner.png", desc: "Mine the corn, avoid the insects." },
+      { folder: "pong", title: "Pong", icon: "pong.png", desc: "The OG." },
+      { folder: "racer", title: "Micro Racer", desc: "Micro racing action." },
+      { folder: "retired_in_a_field", title: "Retired in a Field", icon: "riaf_advent.png", desc: "Avoid the cows, enjoy retirement." },
+      { folder: "scramble", title: "Scramble", icon: "scramble.png", desc: "Classic side scrolling shooter." },
+      { folder: "SkiSats", title: "SkiSats", icon: "skisats.png", desc: "Hit the slopes." },
+      { folder: "snake", title: "Snake", icon: "snake.png", desc: "Classic snake with a twist." },
+      { folder: "space", title: "Space Invaders", icon: "spacey.png", desc: "Invaders from space." },
+      { folder: "tron", title: "Tron Bike", icon: "tronbike.png", desc: "Derez your opponents." },
+      { url: "https://word5.otherstuff.ai", title: "Word5", icon: "word5.png", desc: "Five letter word game." }
+    ];
+
+    const grid = document.getElementById("grid");
+
+    games.forEach(g => {
+      const a = document.createElement("a");
+      a.className = "card";
+      a.href = g.url || `./${g.folder}/`;
+      if (g.url) { a.target = "_blank"; a.rel = "noopener noreferrer"; }
+
+      if (g.icon) {
+        const img = document.createElement("img");
+        img.className = "card-img";
+        img.src = `./images/${g.icon}`;
+        img.alt = g.title;
+        img.loading = "lazy";
+        a.appendChild(img);
+      } else {
+        const ph = document.createElement("div");
+        ph.className = "card-placeholder";
+        ph.textContent = g.title.charAt(0);
+        a.appendChild(ph);
+      }
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = g.title;
+      body.appendChild(title);
+
+      const desc = document.createElement("div");
+      desc.className = "card-desc";
+      desc.textContent = g.desc;
+      body.appendChild(desc);
+
+      a.appendChild(body);
+      grid.appendChild(a);
+    });
+  </script>
+</body>
+</html>

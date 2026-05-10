@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="assets/icon-bullrun.png">
+  <link rel="shortcut icon" type="image/png" href="assets/icon-bullrun.png">
+  <link rel="apple-touch-icon" href="assets/icon-bullrun.png">
+  <meta name="theme-color" content="#0c0f1a">
+  <title>Bull Run</title>
+  <style>
+    :root {
+      --bg-1: #1b1f2a;
+      --bg-2: #10131c;
+      --accent: #f0c144;
+      --accent-2: #ff4d6d;
+      --road: #303440;
+      --road-line: #d4d8e8;
+      --wall-1: #3d4254;
+      --wall-2: #1f2230;
+      --crowd: #fce089;
+      --bull: #5b0f12;
+      --bull-horn: #f6e7c1;
+      --bull-eye: #f7f9ff;
+      --runner: #f7f3e9;
+      --runner-shirt: #ff4d6d;
+      --runner-shadow: rgba(0, 0, 0, 0.35);
+      --grid-line: rgba(255, 255, 255, 0.06);
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 20% 10%, #f0c144 0, #d4a574 30%, #a67c52 70%, #5b1d2b 100%);
+      color: #f7f3e9;
+      font-family: "Press Start 2P", "VT323", "Courier New", monospace;
+      letter-spacing: 0.5px;
+      image-rendering: pixelated;
+    }
+    .frame {
+      width: min(620px, 100vw - 24px);
+      max-height: 100svh;
+      background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+      border: 6px solid #0a0c14;
+      box-shadow:
+        0 0 0 4px #121629,
+        0 16px 40px rgba(0, 0, 0, 0.5);
+      padding: 12px;
+    }
+    .header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    #hud {
+      color: #ffffff;
+      text-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+    }
+    .header-left {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .title {
+      color: var(--accent);
+      text-shadow: 2px 2px 0 #111;
+      text-align: center;
+    }
+    .game-wrap {
+      width: 540px;
+      height: 900px;
+      touch-action: none;
+    }
+    canvas {
+      width: 540px;
+      height: 900px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--grid-line),
+        var(--grid-line) 8px,
+        transparent 8px,
+        transparent 16px
+      );
+      border: 4px solid #101426;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .footer {
+      margin-top: 8px;
+      font-size: 10px;
+      color: #cbd5ff;
+    }
+    .footer strong { color: var(--accent-2); }
+    /* Overlays */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+      pointer-events: none;
+    }
+    .overlay.visible { display: flex; }
+    .overlay-inner {
+      pointer-events: auto;
+      background: rgba(12, 15, 26, 0.92);
+      border: 2px solid #1f2740;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+      border-radius: 10px;
+      padding: 14px;
+      width: min(420px, 90vw);
+      color: #e8ecff;
+      text-align: center;
+      font-size: 12px;
+    }
+    .overlay h3 {
+      margin: 0 0 6px 0;
+      color: var(--accent);
+      font-size: 14px;
+    }
+    .overlay p { margin: 4px 0; }
+    .overlay .btn-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .overlay button {
+      background: #1d2542;
+      color: #e8ecff;
+      border: 1px solid #2f3656;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .overlay-love {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #cbd5ff;
+    }
+    .overlay-love a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px dashed #5af5f0;
+    }
+    .start-btn {
+      font-size: 16px;
+      padding: 14px 20px;
+      width: 100%;
+      text-transform: uppercase;
+    }
+    .start-overlay-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .start-login-btn {
+      font-size: 12px;
+      padding: 10px 14px;
+    }
+    /* Avatar + dropdown */
+    .avatar-bubble {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #0a0c14;
+      background: linear-gradient(135deg, #1d2542, #0f1326);
+      color: #f5d100;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      transition: transform 0.1s ease;
+    }
+    .avatar-bubble:active { transform: translateY(1px); }
+    .avatar-dropdown {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      min-width: 220px;
+      background: #0f1326;
+      border: 1px solid #1f2740;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+      border-radius: 8px;
+      padding: 10px;
+      display: none;
+      z-index: 1200;
+    }
+    .avatar-dropdown.open { display: block; }
+    .avatar-label {
+      color: #e8ecff;
+      font-size: 11px;
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+    .nostr-btn {
+      width: 100%;
+      background: #1d2542;
+      color: #e8ecff;
+      border: 1px solid #2f3656;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .nostr-btn:active { transform: translateY(1px); }
+    .nostr-input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #2f3656;
+      background: #0c0f1a;
+      color: #e8ecff;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    /* Keys modal */
+    #keysModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+      padding: 12px;
+    }
+    #keysModalInner {
+      width: min(92vw, 480px);
+      background: #0f1326;
+      border: 1px solid #1f2740;
+      color: #e8ecff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    }
+    #keysModalNpub, #keysModalNsec {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      padding: 6px 8px;
+      border: 1px solid #2f3656;
+      border-radius: 6px;
+      background: #0c0f1a;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    #keysModalToggle {
+      width: 38px;
+      height: 38px;
+      font-size: 16px;
+    }
+    #keysQrContainer { margin-top: 6px; display: flex; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="header">
+      <div class="header-left">
+        <button id="nostrAvatarBubble" class="avatar-bubble" aria-label="Nostr identity">🟢</button>
+        <div id="nostrAvatarDropdown" class="avatar-dropdown">
+          <div id="nostrAvatarLabel" class="avatar-label">Session: loading…</div>
+          <button class="nostr-btn nostrLoginBtn">Login with Nostr (NIP-07)</button>
+          <button id="keysOpenBtn" class="nostr-btn">View keys</button>
+          <button id="keysCopyBtn" class="nostr-btn session-only">Copy session nsec</button>
+          <button id="keysQrBtn" class="nostr-btn session-only">Show session QR</button>
+          <input id="keysImportInput" class="nostr-input session-only" placeholder="Paste nsec to import">
+          <button id="keysImportBtn" class="nostr-btn session-only">Import nsec</button>
+          <button id="keysNewPlayerBtn" class="nostr-btn">New player</button>
+        </div>
+      </div>
+      <div class="title">BULL RUN</div>
+      <div id="hud">Score: 0</div>
+    </div>
+    <div class="game-wrap">
+      <canvas id="game" width="540" height="900"></canvas>
+      <div id="startOverlay" class="overlay visible">
+        <div class="overlay-inner">
+          <h3>Bull Run</h3>
+          <p style="color:#cbd5ff;">Sprint down the street, dodge barriers, and don’t get gored.</p>
+          <div class="start-overlay-actions">
+            <button id="startGameBtn" class="start-btn">Start Game</button>
+            <button class="start-login-btn nostrLoginBtn">Login with NIP-07</button>
+          </div>
+          <div class="overlay-love">
+            <a href="https://otherstuff.ai" target="_blank" rel="noreferrer">Vibed with Love. otherstuff.ai</a>
+          </div>
+        </div>
+      </div>
+      <div id="gameOverlay" class="overlay">
+        <div class="overlay-inner">
+          <h3>Game Over</h3>
+          <p id="overlayScore">Score: —</p>
+          <p style="color:#cbd5ff;">Streets sprinted: <span id="overlayDistance">0m</span></p>
+          <div class="btn-row">
+            <button id="overlayRestartBtn">Start Game</button>
+            <button id="overlayPostBtn">Post score to Nostr</button>
+          </div>
+          <div id="overlayStatus" style="margin-top:6px; color:#a7b7ff;"></div>
+          <div class="overlay-love">
+            <a href="https://otherstuff.ai" target="_blank" rel="noreferrer">Vibed with Love. otherstuff.ai</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <strong>A/D</strong> or <strong>←/→</strong> to dodge. <strong>W/S</strong> or <strong>↑/↓</strong> to sprint/slow. <strong>R</strong> to restart.
+    </div>
+  </div>
+  <div id="keysModal">
+    <div id="keysModalInner">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:14px;">Session Keys</div>
+        <button id="keysModalClose" class="nostr-btn" style="width:auto; padding:6px 10px; margin:0;">Close</button>
+      </div>
+      <div id="keysModalNpub"></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div id="keysModalNsec" style="flex:1;"></div>
+        <button id="keysModalToggle" class="nostr-btn" aria-label="Reveal private key">👁</button>
+      </div>
+      <div id="keysModalNote" style="font-size:11px; color:#cbd5ff; margin-top:6px;"></div>
+      <div id="keysQrContainer"></div>
+    </div>
+  </div>
+  <script src="js/nostr-session.js"></script>
+  <script src="js/nostr-signers.js"></script>
+  <script src="js/nostr-post.js"></script>
+  <script src="js/nostr-ui.js"></script>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const hud = document.getElementById("hud");
+    const palette = {
+      // Spanish town colors
+      wallTop: "#d4a574",      // Terracotta buildings
+      wallBottom: "#a67c52",   // Darker terracotta
+      buildingAccent: "#8b5a2b", // Window/door frames
+      buildingWindow: "#2d1810", // Dark windows
+      road: "#8a7355",         // Cobblestone base
+      roadLine: "#a69070",     // Cobblestone lighter
+      cobbleDark: "#5c4a3a",   // Cobblestone shadows
+      cobbleLight: "#b8a080",  // Cobblestone highlights
+      crowd: "#c9302c",        // Red festival colors
+      crowdAlt: "#ffffff",     // White festival colors
+      roadBrick1: "#7f6a4f",   // Center bricks darker
+      roadBrick2: "#6b5944",
+      sideBrick1: "#d9c6a1",   // Side aisle bricks lighter
+      sideBrick2: "#c4b088",
+      // Runner - blue body, yellow head like logo
+      runner: "#1a73e8",       // Blue body
+      runnerHead: "#f0c144",   // Yellow/golden head
+      runnerShirt: "#1a73e8",  // Blue shirt
+      runnerShorts: "#1557b0", // Darker blue shorts
+      runnerShadow: "rgba(0,0,0,0.35)",
+      // Obstacles - Spanish street items
+      obstacle: "#7a553b",     // Wooden crates
+      obstacleStrap: "#c48c5c",
+      barrel: "#8b4513",       // Barrel brown
+      barrelRing: "#4a4a4a",   // Metal rings
+      wallObstacle: "#d4a574", // Narrowing walls (terracotta)
+      // Bulls
+      bullBody: "#5b0f12",
+      bullHorn: "#f6e7c1",
+      bullEye: "#f7f9ff",
+      warning: "#ffb347",
+      // Power-ups
+      powerEnergy: "#5ad67d",
+      powerWind: "#f0c144",
+      powerShield: "#8ae2ff",
+      powerLaser: "#ff4d6d",
+    };
+
+    const input = { left: false, right: false, up: false, down: false, restart: false };
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const world = {
+      started: false,
+      gameOver: false,
+      postedScore: false,
+      score: 0,
+      distance: 0,
+      lives: 3,
+      maxLives: 5,
+      elapsedTime: 0,
+      baseScrollSpeed: 264,
+      scrollSpeed: 264,
+      scrollOffset: 0,
+      brickOffsetX: 0,
+      nextObstacle: 1.4,
+      nextPowerUp: 4,
+      nextBull: 6,
+      wave: 1,
+      waveTimer: 0,
+    };
+
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height * 0.78,
+      w: 90,
+      h: 34,
+      vx: 0,
+      speed: 300,
+      tilt: 0,
+      invuln: 0,
+      boostTimer: 0,
+      laserTimer: 0,
+      shieldTimer: 0,
+    };
+
+    const obstacles = [];
+    const bulls = [];
+    const powerUps = [];
+
+    const startOverlay = document.getElementById("startOverlay");
+    const startGameBtn = document.getElementById("startGameBtn");
+    const overlay = document.getElementById("gameOverlay");
+    const overlayScore = document.getElementById("overlayScore");
+    const overlayDistance = document.getElementById("overlayDistance");
+    const overlayRestartBtn = document.getElementById("overlayRestartBtn");
+    const overlayPostBtn = document.getElementById("overlayPostBtn");
+    const overlayStatus = document.getElementById("overlayStatus");
+
+    const frameEl = document.querySelector(".frame");
+    const headerEl = document.querySelector(".header");
+    const footerEl = document.querySelector(".footer");
+    const gameWrap = document.querySelector(".game-wrap");
+    let pointerDown = false;
+
+    function resizeGameView() {
+      const baseW = canvas.width;
+      const baseH = canvas.height;
+      const viewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      const viewportW = (window.visualViewport && window.visualViewport.width) || window.innerWidth;
+      const headerH = headerEl.getBoundingClientRect().height;
+      const footerH = footerEl.getBoundingClientRect().height;
+      const frameStyle = getComputedStyle(frameEl);
+      const paddingY = parseFloat(frameStyle.paddingTop) + parseFloat(frameStyle.paddingBottom);
+      const paddingX = parseFloat(frameStyle.paddingLeft) + parseFloat(frameStyle.paddingRight);
+      const borderY = parseFloat(frameStyle.borderTopWidth) + parseFloat(frameStyle.borderBottomWidth);
+      const borderX = parseFloat(frameStyle.borderLeftWidth) + parseFloat(frameStyle.borderRightWidth);
+      const gutter = 12;
+
+      const availableHeight = Math.max(
+        320,
+        viewportH - headerH - footerH - paddingY - borderY - gutter
+      );
+      const availableWidth = Math.max(
+        320,
+        Math.min(frameEl.clientWidth - paddingX, viewportW - paddingX) - gutter
+      );
+
+      let targetHeight = Math.min(baseH, availableHeight);
+      let targetWidth = targetHeight * (baseW / baseH);
+
+      if (targetWidth > availableWidth) {
+        targetWidth = availableWidth;
+        targetHeight = targetWidth * (baseH / baseW);
+      }
+
+      canvas.style.width = `${targetWidth}px`;
+      canvas.style.height = `${targetHeight}px`;
+      gameWrap.style.width = `${targetWidth}px`;
+      gameWrap.style.height = `${targetHeight}px`;
+    }
+
+    const keys = {
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      ArrowUp: "up",
+      ArrowDown: "down",
+      a: "left",
+      d: "right",
+      w: "up",
+      s: "down",
+      A: "left",
+      D: "right",
+      W: "up",
+      S: "down",
+    };
+
+    window.addEventListener("keydown", (e) => {
+      if (keys[e.key]) input[keys[e.key]] = true;
+      if (e.key === "r" || e.key === "R") input.restart = true;
+    });
+    window.addEventListener("keyup", (e) => {
+      if (keys[e.key]) input[keys[e.key]] = false;
+    });
+
+    function setPointerMove(clientX) {
+      const isLeft = clientX < window.innerWidth * 0.5;
+      input.left = isLeft;
+      input.right = !isLeft;
+    }
+
+    function clearPointerMove() {
+      pointerDown = false;
+      input.left = false;
+      input.right = false;
+    }
+
+    gameWrap.addEventListener("pointerdown", (e) => {
+      pointerDown = true;
+      setPointerMove(e.clientX);
+      e.preventDefault();
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (!pointerDown) return;
+      setPointerMove(e.clientX);
+    });
+
+    window.addEventListener("pointerup", clearPointerMove);
+    window.addEventListener("pointercancel", clearPointerMove);
+    window.addEventListener("pointerleave", clearPointerMove);
+
+    function setupWorldState() {
+      world.postedScore = false;
+      world.score = 0;
+      world.distance = 0;
+      world.lives = 3;
+      world.gameOver = false;
+      world.elapsedTime = 0;
+      world.scrollSpeed = world.baseScrollSpeed;
+      world.scrollOffset = 0;
+      world.brickOffsetX = 0;
+      world.nextObstacle = 1.5;
+      world.nextPowerUp = 4;
+      world.nextBull = rand(4.5, 7.5);
+      world.wave = 1;
+      world.waveTimer = 0;
+      player.x = canvas.width / 2;
+      player.y = canvas.height * 0.62;
+      player.vx = 0;
+      player.tilt = 0;
+      player.invuln = 0;
+      player.boostTimer = 0;
+      player.laserTimer = 0;
+      player.shieldTimer = 0;
+      obstacles.length = 0;
+      bulls.length = 0;
+      powerUps.length = 0;
+      if (overlayStatus) overlayStatus.textContent = "";
+    }
+
+    function hideStartOverlay() {
+      if (startOverlay) startOverlay.classList.remove("visible");
+    }
+
+    function startGame() {
+      if (world.started) return;
+      hideStartOverlay();
+      resetGame();
+    }
+
+    function resetGame() {
+      world.gameOver = false;
+      world.started = true;
+      setupWorldState();
+      if (overlay) overlay.style.display = "none";
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    const lerp = (from, to, t) => from + (to - from) * clamp(t, 0, 1);
+
+    function drawRoundedRect(x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function circleRectCollision(circle, rect) {
+      const closestX = clamp(circle.x, rect.x, rect.x + rect.w);
+      const closestY = clamp(circle.y, rect.y, rect.y + rect.h);
+      const dx = circle.x - closestX;
+      const dy = circle.y - closestY;
+      return dx * dx + dy * dy <= circle.radius * circle.radius;
+    }
+
+    function drawBackground() {
+      const buildingWidth = 90;  // Width of buildings on each side
+      const roadX = buildingWidth;
+      const roadWidth = canvas.width - buildingWidth * 2;
+
+      // Yellowish cobblestone road - entire center area
+      ctx.fillStyle = "#c9a86c";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Animated cobblestone pattern moving diagonally (down + right)
+      const stoneSize = 48;
+      const stoneGap = 3;
+      const horizontalScroll = world.brickOffsetX % stoneSize;
+      const verticalScroll = world.scrollOffset % stoneSize;
+
+      // Draw cobblestones
+      for (let y = verticalScroll - stoneSize * 2; y < canvas.height + stoneSize; y += stoneSize) {
+        const rowOffset = (Math.floor(y / stoneSize) % 2) * (stoneSize / 2);
+        for (let x = horizontalScroll + rowOffset - stoneSize; x < canvas.width + stoneSize; x += stoneSize) {
+          // Alternate colors for variety
+          const colorVar = ((Math.floor(x / stoneSize) + Math.floor(y / stoneSize)) % 3);
+          if (colorVar === 0) ctx.fillStyle = "#d4b07a";
+          else if (colorVar === 1) ctx.fillStyle = "#b89860";
+          else ctx.fillStyle = "#c4a068";
+
+          ctx.fillRect(x + stoneGap, y + stoneGap, stoneSize - stoneGap * 2, stoneSize - stoneGap * 2);
+        }
+      }
+
+      // Cobblestone gap color (darker grout)
+      ctx.fillStyle = "#8a7050";
+
+      // Horizontal grout lines
+      for (let y = verticalScroll - stoneSize; y < canvas.height + stoneSize; y += stoneSize) {
+        ctx.fillRect(0, y, canvas.width, stoneGap);
+      }
+
+      // Left building wall
+      const wallGrad = ctx.createLinearGradient(0, 0, buildingWidth, 0);
+      wallGrad.addColorStop(0, "#8b5a2b");
+      wallGrad.addColorStop(0.5, palette.wallTop);
+      wallGrad.addColorStop(1, palette.wallBottom);
+      ctx.fillStyle = wallGrad;
+      ctx.fillRect(0, 0, buildingWidth, canvas.height);
+
+      // Right building wall
+      const wallGrad2 = ctx.createLinearGradient(canvas.width - buildingWidth, 0, canvas.width, 0);
+      wallGrad2.addColorStop(0, palette.wallBottom);
+      wallGrad2.addColorStop(0.5, palette.wallTop);
+      wallGrad2.addColorStop(1, "#8b5a2b");
+      ctx.fillStyle = wallGrad2;
+      ctx.fillRect(canvas.width - buildingWidth, 0, buildingWidth, canvas.height);
+
+      // Windows on buildings (scrolling DOWN)
+      const windowSpacing = 100;
+      const windowOffset = world.scrollOffset % windowSpacing;
+      ctx.fillStyle = palette.buildingWindow;
+      for (let y = windowOffset - windowSpacing; y < canvas.height + windowSpacing; y += windowSpacing) {
+        // Left building windows
+        ctx.fillRect(20, y + 25, 28, 40);
+        ctx.fillRect(55, y + 25, 28, 40);
+        // Right building windows
+        ctx.fillRect(canvas.width - 48, y + 25, 28, 40);
+        ctx.fillRect(canvas.width - 83, y + 25, 28, 40);
+      }
+
+      // Window frames
+      ctx.strokeStyle = "#5c3a21";
+      ctx.lineWidth = 3;
+      for (let y = windowOffset - windowSpacing; y < canvas.height + windowSpacing; y += windowSpacing) {
+        ctx.strokeRect(20, y + 25, 28, 40);
+        ctx.strokeRect(55, y + 25, 28, 40);
+        ctx.strokeRect(canvas.width - 48, y + 25, 28, 40);
+        ctx.strokeRect(canvas.width - 83, y + 25, 28, 40);
+      }
+
+      // Festival banners between buildings
+      const bannerSpacing = 150;
+      const bannerOffset = (world.scrollOffset * 0.5) % bannerSpacing;
+      for (let y = bannerOffset - bannerSpacing; y < canvas.height + bannerSpacing; y += bannerSpacing) {
+        ctx.fillStyle = palette.crowd;
+        ctx.fillRect(buildingWidth - 5, y, roadWidth + 10, 8);
+        ctx.fillStyle = palette.crowdAlt;
+        for (let fx = buildingWidth + 15; fx < canvas.width - buildingWidth - 15; fx += 35) {
+          ctx.beginPath();
+          ctx.moveTo(fx, y + 8);
+          ctx.lineTo(fx + 12, y + 28);
+          ctx.lineTo(fx + 24, y + 8);
+          ctx.fill();
+        }
+      }
+
+      // Building edge shadows (makes buildings feel solid)
+      ctx.fillStyle = "rgba(0,0,0,0.3)";
+      ctx.fillRect(buildingWidth - 6, 0, 6, canvas.height);
+      ctx.fillRect(canvas.width - buildingWidth, 0, 6, canvas.height);
+    }
+
+    function drawPowerUps() {
+      powerUps.forEach((p) => {
+        ctx.save();
+        ctx.translate(p.x + p.size / 2, p.y + p.size / 2);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(12, 15, 26, 0.35)";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(drawBarricade);
+    }
+
+    function drawBulls() {
+      bulls.forEach(drawBull);
+    }
+
+    function drawLaserBeam() {
+      /* no-op: runner has no lasers */
+    }
+
+    function drawBarricade(obs) {
+      ctx.save();
+      const bob = Math.sin(world.scrollOffset * 0.05 + obs.phase) * 2;
+
+      if (obs.type === "barrel") {
+        ctx.translate(obs.x + obs.w / 2, obs.y + obs.h / 2 + bob);
+
+        // Barrel body (oval)
+        ctx.fillStyle = palette.barrel;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, obs.w / 2, obs.h / 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Metal rings
+        ctx.strokeStyle = palette.barrelRing;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.ellipse(0, -obs.h * 0.25, obs.w / 2.2, 6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(0, obs.h * 0.25, obs.w / 2.2, 6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Top of barrel
+        ctx.fillStyle = "#6b3a0a";
+        ctx.beginPath();
+        ctx.ellipse(0, -obs.h * 0.35, obs.w / 2.8, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+      } else if (obs.type === "narrowLeft" || obs.type === "narrowRight") {
+        ctx.translate(obs.x, obs.y);
+
+        // Building extension - solid terracotta to match the main buildings
+        const grad = ctx.createLinearGradient(0, 0, obs.w, 0);
+        if (obs.type === "narrowLeft") {
+          grad.addColorStop(0, palette.wallBottom);
+          grad.addColorStop(0.7, palette.wallTop);
+          grad.addColorStop(1, palette.wallBottom);
+        } else {
+          grad.addColorStop(0, palette.wallBottom);
+          grad.addColorStop(0.3, palette.wallTop);
+          grad.addColorStop(1, palette.wallBottom);
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, obs.w, obs.h);
+
+        // Windows on the building extension (if wide enough)
+        if (obs.w > 50) {
+          ctx.fillStyle = palette.buildingWindow;
+          const windowX = obs.type === "narrowLeft" ? 15 : obs.w - 43;
+          const windowSpacing = 100;
+          for (let wy = 25; wy < obs.h - 50; wy += windowSpacing) {
+            ctx.fillRect(windowX, wy, 28, 40);
+            ctx.strokeStyle = "#5c3a21";
+            ctx.lineWidth = 3;
+            ctx.strokeRect(windowX, wy, 28, 40);
+          }
+        }
+
+        // Building edge shadow on the road-facing side
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        if (obs.type === "narrowLeft") {
+          ctx.fillRect(obs.w - 6, 0, 6, obs.h);
+        } else {
+          ctx.fillRect(0, 0, 6, obs.h);
+        }
+
+      } else {
+        // Default crate
+        ctx.translate(obs.x, obs.y + bob);
+        ctx.fillStyle = palette.obstacle;
+        drawRoundedRect(0, 0, obs.w, obs.h, 8);
+
+        // Wooden plank lines
+        ctx.strokeStyle = "#5c3a21";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(8, obs.h);
+        ctx.moveTo(obs.w - 8, 0);
+        ctx.lineTo(obs.w - 8, obs.h);
+        ctx.moveTo(0, obs.h * 0.33);
+        ctx.lineTo(obs.w, obs.h * 0.33);
+        ctx.moveTo(0, obs.h * 0.66);
+        ctx.lineTo(obs.w, obs.h * 0.66);
+        ctx.stroke();
+
+        // Metal corner reinforcements
+        ctx.fillStyle = "#4a4a4a";
+        ctx.fillRect(0, 0, 12, 12);
+        ctx.fillRect(obs.w - 12, 0, 12, 12);
+        ctx.fillRect(0, obs.h - 12, 12, 12);
+        ctx.fillRect(obs.w - 12, obs.h - 12, 12, 12);
+
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.18)";
+        ctx.fillRect(0, obs.h - 6, obs.w, 6);
+      }
+      ctx.restore();
+    }
+
+    function drawBull(bull) {
+      ctx.save();
+      const bob = Math.sin(world.scrollOffset * 0.08 + bull.phase) * 4;
+      ctx.translate(bull.x + bull.w / 2, bull.y + bull.h / 2 + bob);
+
+      // Bull faces UP (chasing from behind, moving towards player)
+      // Body at bottom, head/horns at top pointing up
+
+      // Body (lower part)
+      ctx.fillStyle = palette.bullBody;
+      drawRoundedRect(-bull.w / 2, 0, bull.w, bull.h * 0.5, 14);
+
+      // Head (upper part, facing up towards player)
+      drawRoundedRect(-bull.w * 0.35, -bull.h * 0.35, bull.w * 0.7, bull.h * 0.45, 12);
+
+      // Horns - pointing UP towards the player!
+      ctx.fillStyle = palette.bullHorn;
+      ctx.beginPath();
+      ctx.moveTo(-bull.w * 0.28, -bull.h * 0.3);
+      ctx.lineTo(-bull.w * 0.5, -bull.h * 0.6);  // Left horn pointing up
+      ctx.lineTo(-bull.w * 0.15, -bull.h * 0.25);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bull.w * 0.28, -bull.h * 0.3);
+      ctx.lineTo(bull.w * 0.5, -bull.h * 0.6);   // Right horn pointing up
+      ctx.lineTo(bull.w * 0.15, -bull.h * 0.25);
+      ctx.fill();
+
+      // Angry red eyes (on the head, looking up)
+      ctx.fillStyle = "#ff3333";
+      ctx.beginPath();
+      ctx.arc(-bull.w * 0.12, -bull.h * 0.18, 7, 0, Math.PI * 2);
+      ctx.arc(bull.w * 0.12, -bull.h * 0.18, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#1b1b1b";
+      ctx.beginPath();
+      ctx.arc(-bull.w * 0.12, -bull.h * 0.18, 3, 0, Math.PI * 2);
+      ctx.arc(bull.w * 0.12, -bull.h * 0.18, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Snout/nose at the very top (closest to player)
+      ctx.fillStyle = "#3a0808";
+      ctx.beginPath();
+      ctx.ellipse(0, -bull.h * 0.38, bull.w * 0.15, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Nose ring
+      ctx.strokeStyle = palette.warning;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, -bull.h * 0.42, 6, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Snorting steam effect (coming from nostrils towards player)
+      ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+      const steamOffset = Math.sin(world.elapsedTime * 12) * 3;
+      ctx.beginPath();
+      ctx.arc(-bull.w * 0.08, -bull.h * 0.5 - steamOffset, 6, 0, Math.PI * 2);
+      ctx.arc(bull.w * 0.08, -bull.h * 0.5 + steamOffset, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Back legs (at the bottom, galloping)
+      ctx.fillStyle = palette.bullBody;
+      const legW = bull.w * 0.14;
+      const legH = bull.h * 0.3;
+      const legGap = bull.w * 0.2;
+      const gallop = Math.sin(world.elapsedTime * 15 + bull.phase) * 8;
+      ctx.fillRect(-legGap - legW / 2, bull.h * 0.35 + gallop, legW, legH);
+      ctx.fillRect(legGap - legW / 2, bull.h * 0.35 - gallop, legW, legH);
+
+      // Tail at the very back
+      ctx.strokeStyle = palette.bullBody;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(0, bull.h * 0.45);
+      ctx.quadraticCurveTo(bull.w * 0.2, bull.h * 0.6, 0, bull.h * 0.65);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      ctx.save();
+      const bounce = Math.sin(world.elapsedTime * 8) * 4;
+      ctx.translate(player.x, player.y + bounce);
+      ctx.rotate(player.tilt * 0.4);
+
+      // Shadow
+      ctx.fillStyle = palette.runnerShadow;
+      ctx.beginPath();
+      ctx.ellipse(0, player.h * 0.7, player.w * 0.45, player.h * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Legs (blue)
+      ctx.fillStyle = palette.runnerShorts;
+      ctx.fillRect(-6, 6, 12, player.h * 0.4);
+      ctx.fillStyle = palette.runner;
+      ctx.fillRect(-8, player.h * 0.35, 6, player.h * 0.4);
+      ctx.fillRect(2, player.h * 0.35, 6, player.h * 0.4);
+
+      // Torso (blue)
+      ctx.fillStyle = palette.runnerShirt;
+      drawRoundedRect(-14, -4, 28, player.h * 0.5, 6);
+
+      // Head (yellow/golden like the logo)
+      ctx.fillStyle = palette.runnerHead;
+      ctx.beginPath();
+      ctx.arc(0, -player.h * 0.05, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Arms (blue)
+      ctx.fillStyle = palette.runner;
+      ctx.fillRect(-20, 4, 10, player.h * 0.25);
+      ctx.fillRect(10, 4, 10, player.h * 0.25);
+
+      // Shield effect if active
+      if (player.shieldTimer > 0) {
+        ctx.strokeStyle = palette.powerShield;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.6 + Math.sin(world.elapsedTime * 10) * 0.3;
+        ctx.beginPath();
+        ctx.arc(0, 10, 25, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.restore();
+    }
+
+    function spawnObstacle() {
+      const buildingWidth = 90;
+      const roadX = buildingWidth;
+      const roadWidth = canvas.width - buildingWidth * 2;
+
+      // Random obstacle type
+      const roll = Math.random();
+      let obsType;
+      if (roll < 0.35) obsType = "crate";
+      else if (roll < 0.6) obsType = "barrel";
+      else if (roll < 0.8) obsType = "narrowLeft";
+      else obsType = "narrowRight";
+
+      if (obsType === "crate") {
+        const w = rand(60, 100);
+        const h = rand(60, 90);
+        obstacles.push({
+          type: "crate",
+          x: rand(roadX + 20, roadX + roadWidth - w - 20),
+          y: -h,
+          w,
+          h,
+          speed: world.scrollSpeed + rand(20, 60),
+          phase: Math.random() * Math.PI * 2,
+        });
+      } else if (obsType === "barrel") {
+        const size = rand(50, 70);
+        obstacles.push({
+          type: "barrel",
+          x: rand(roadX + 20, roadX + roadWidth - size - 20),
+          y: -size,
+          w: size,
+          h: size,
+          speed: world.scrollSpeed + rand(20, 50),
+          phase: Math.random() * Math.PI * 2,
+        });
+      } else if (obsType === "narrowLeft") {
+        // Building extension closes in from left side (starts at building edge)
+        const w = rand(60, 120);
+        const h = rand(180, 280);
+        obstacles.push({
+          type: "narrowLeft",
+          x: buildingWidth,  // Start at edge of static building
+          y: -h,
+          w,  // Only the extension width
+          h,
+          speed: 0,  // Move exactly with background (no additional speed)
+          phase: Math.random() * Math.PI * 2,
+        });
+      } else {
+        // Building extension closes in from right side
+        const w = rand(60, 120);
+        const h = rand(180, 280);
+        obstacles.push({
+          type: "narrowRight",
+          x: canvas.width - buildingWidth - w,  // Position so it touches right building
+          y: -h,
+          w,  // Only the extension width
+          h,
+          speed: 0,  // Move exactly with background
+          phase: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function spawnPowerUp() {
+      const buildingWidth = 90;
+      const roadX = buildingWidth;
+      const roadWidth = canvas.width - buildingWidth * 2;
+
+      const roll = Math.random();
+      let type;
+      if (roll < 0.35) type = "energy";
+      else if (roll < 0.6) type = "wind";
+      else if (roll < 0.8) type = "shield";
+      else type = "laser";
+      const size = 30;
+      const colors = {
+        energy: palette.powerEnergy,
+        wind: palette.powerWind,
+        shield: palette.powerShield,
+        laser: palette.powerLaser,
+      };
+      powerUps.push({
+        type,
+        x: rand(roadX + 20, roadX + roadWidth - size - 20),
+        y: -size,
+        size,
+        speed: world.scrollSpeed * 0.8,
+        color: colors[type] || palette.powerEnergy,
+      });
+    }
+
+    function spawnBull() {
+      const buildingWidth = 90;
+      const roadX = buildingWidth;
+      const roadWidth = canvas.width - buildingWidth * 2;
+
+      const w = rand(90, 140);
+      const h = rand(100, 140);
+      bulls.push({
+        x: rand(roadX + 20, roadX + roadWidth - w - 20),
+        y: canvas.height + 40,  // Spawn from bottom (behind the player)
+        w,
+        h,
+        speed: world.scrollSpeed * rand(0.8, 1.2),  // Speed relative to scroll - they catch up
+        phase: Math.random() * Math.PI * 2,
+      });
+      notify("Bull incoming from behind!");
+    }
+
+    function applyPowerUp(power) {
+      switch (power.type) {
+        case "energy":
+          world.lives = clamp(world.lives + 1, 0, world.maxLives);
+          world.score += 150;
+          notify("Fresh water! +1 heart.");
+          break;
+        case "wind":
+          player.boostTimer = Math.max(player.boostTimer, 3);
+          world.score += 75;
+          notify("Sprint shoes on!");
+          break;
+        case "shield":
+          player.shieldTimer = Math.max(player.shieldTimer, 2);
+          player.invuln = Math.max(player.invuln, player.shieldTimer);
+          world.score += 60;
+          notify("Padding up!");
+          break;
+        case "laser":
+        default:
+          player.laserTimer = Math.max(player.laserTimer, 2);
+          world.score += 90;
+          notify("Adrenaline rush!");
+          break;
+      }
+    }
+
+    function handlePlayerHit() {
+      if (player.shieldTimer > 0) {
+        notify("Padding absorbed the hit!");
+        return;
+      }
+      if (player.invuln > 0) return;
+      world.lives -= 1;
+      world.score = Math.max(0, Math.floor(world.score - 120));
+      player.invuln = 1.5;
+      notify("You got clipped!");
+      if (world.lives <= 0) {
+        world.lives = 0;
+        world.gameOver = true;
+        showGameOver();
+      }
+    }
+
+    function updatePlayer(dt) {
+      const buildingWidth = 90;
+      const steer = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+      const boost = player.boostTimer > 0 ? 1.3 : 1;
+      player.vx = lerp(player.vx, steer * player.speed * boost, 0.15);
+      player.x = clamp(player.x + player.vx * dt, buildingWidth + 25, canvas.width - buildingWidth - 25);
+      player.tilt = lerp(player.tilt, steer * 0.4, 0.08);
+      if (player.invuln > 0) {
+        player.invuln = Math.max(0, player.invuln - dt);
+      }
+      if (player.boostTimer > 0) {
+        player.boostTimer = Math.max(0, player.boostTimer - dt);
+      }
+      if (player.laserTimer > 0) {
+        player.laserTimer = Math.max(0, player.laserTimer - dt);
+      }
+      if (player.shieldTimer > 0) {
+        player.shieldTimer = Math.max(0, player.shieldTimer - dt);
+        player.invuln = Math.max(player.invuln, player.shieldTimer);
+      }
+    }
+
+    function updateObstacles(dt) {
+      const hitCircle = { x: player.x, y: player.y + 6, radius: player.w * 0.35 };
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const obs = obstacles[i];
+        obs.y += (world.scrollSpeed + obs.speed * 0.25) * dt;
+        if (obs.y > canvas.height + obs.h) {
+          obstacles.splice(i, 1);
+          continue;
+        }
+        if (circleRectCollision(hitCircle, obs)) {
+          obstacles.splice(i, 1);
+          handlePlayerHit();
+        }
+      }
+    }
+
+    function updateBulls(dt) {
+      const hitCircle = { x: player.x, y: player.y + 4, radius: player.w * 0.4 };
+      for (let i = bulls.length - 1; i >= 0; i--) {
+        const bull = bulls[i];
+        // Bulls chase from behind - they move UP the screen (faster than scroll)
+        // Net movement: bull moves up relative to player
+        const netSpeed = bull.speed - world.scrollSpeed * 0.3;
+        bull.y -= netSpeed * dt;
+
+        // Also track player horizontally a bit
+        const playerDiff = player.x - (bull.x + bull.w / 2);
+        bull.x += playerDiff * 0.3 * dt;
+
+        // Bull destroys obstacles (crates and barrels, not buildings)
+        const bullRect = { x: bull.x, y: bull.y, w: bull.w, h: bull.h };
+        for (let j = obstacles.length - 1; j >= 0; j--) {
+          const obs = obstacles[j];
+          // Only destroy crates and barrels, not building extensions
+          if (obs.type === "crate" || obs.type === "barrel") {
+            const obsRect = { x: obs.x, y: obs.y, w: obs.w, h: obs.h };
+            // Check if bull overlaps obstacle
+            if (bullRect.x < obsRect.x + obsRect.w &&
+                bullRect.x + bullRect.w > obsRect.x &&
+                bullRect.y < obsRect.y + obsRect.h &&
+                bullRect.y + bullRect.h > obsRect.y) {
+              obstacles.splice(j, 1);
+              world.score += 25;  // Small bonus for bull destroying obstacle
+            }
+          }
+        }
+
+        // Remove if goes off the top
+        if (bull.y < -bull.h - 100) {
+          bulls.splice(i, 1);
+          world.score += 200;  // Bonus for escaping a bull!
+          notify("Escaped the bull!");
+          continue;
+        }
+        if (circleRectCollision(hitCircle, bull)) {
+          bulls.splice(i, 1);
+          handlePlayerHit();
+        }
+      }
+    }
+
+    function updatePowerUps(dt) {
+      const hitCircle = { x: player.x, y: player.y + 6, radius: player.w * 0.35 };
+      for (let i = powerUps.length - 1; i >= 0; i--) {
+        const power = powerUps[i];
+        power.y += (world.scrollSpeed + power.speed) * dt * 0.5;
+        if (power.y > canvas.height + power.size) {
+          powerUps.splice(i, 1);
+          continue;
+        }
+        const rect = { x: power.x, y: power.y, w: power.size, h: power.size };
+        if (circleRectCollision(hitCircle, rect)) {
+          applyPowerUp(power);
+          powerUps.splice(i, 1);
+        }
+      }
+    }
+
+    const notify = (msg) => {
+      try {
+        if (window.NostrUI && typeof window.NostrUI.showToast === "function") {
+          window.NostrUI.showToast(msg);
+          return;
+        }
+      } catch (_) {}
+      console.log("[toast]", msg);
+    };
+
+    function showGameOver() {
+      if (!overlay) return;
+      overlayScore.textContent = `Score: ${Math.floor(world.score)}`;
+      overlayDistance.textContent = `${Math.floor(world.distance)}m`;
+      overlayStatus.textContent = "";
+      overlay.style.display = "flex";
+    }
+
+    async function postScoreToNostr() {
+      if (!window.NostrPost || !window.NostrSigners) {
+        notify("Nostr not ready");
+        return;
+      }
+      const preview = window.NostrPost?.formatScoreContent
+        ? window.NostrPost.formatScoreContent({
+            score: Math.floor(world.score),
+            baseUrl: window.location.origin,
+          })
+        : `I sprinted ${Math.floor(world.distance)}m in Bull Run!\nScore: ${Math.floor(
+            world.score
+          )}\n\nAt ${window.location.origin}`;
+      if (!confirm(`Post this to Nostr?\n\n${preview}`)) return;
+      try {
+        const res = await window.NostrPost.publishScore({
+          score: Math.floor(world.score),
+          baseUrl: window.location.origin,
+        });
+        overlayStatus.textContent = `Posted via ${res.signerMode || "nostr"}`;
+        notify("Score posted");
+      } catch (e) {
+        console.warn("Score publish failed", e);
+        overlayStatus.textContent = "";
+      }
+    }
+
+    let lastTime = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.03, (now - lastTime) / 1000);
+      lastTime = now;
+
+      if (world.started && !world.gameOver) {
+        world.elapsedTime += dt;
+
+        // Wave system - increase wave every 60 seconds
+        world.waveTimer += dt;
+        if (world.waveTimer >= 60) {
+          world.waveTimer = 0;
+          world.wave += 1;
+          notify(`Wave ${world.wave}! The herd is angrier!`);
+        }
+
+        // Speed modifier from up/down input
+        let speedMod = 0;
+        if (input.up) speedMod = 80;      // Sprint faster
+        if (input.down) speedMod = -100;  // Slow down
+
+        world.scrollSpeed = clamp(
+          world.baseScrollSpeed + world.distance * 0.08 + (player.boostTimer > 0 ? 40 : 0) + speedMod,
+          world.baseScrollSpeed * 0.4,  // Can slow down to 40% of base speed
+          480
+        );
+        world.scrollOffset = (world.scrollOffset + world.scrollSpeed * dt) % 500;
+        world.brickOffsetX = (world.brickOffsetX + dt * 80) % 200;
+        world.distance += world.scrollSpeed * dt * 0.3;
+
+        // Points increase with wave (base 0.25, +0.15 per wave)
+        const pointMultiplier = 0.25 + (world.wave - 1) * 0.15;
+        world.score += world.scrollSpeed * dt * pointMultiplier;
+
+        world.nextObstacle -= dt;
+        if (world.nextObstacle <= 0) {
+          spawnObstacle();
+          // Obstacle density increases with wave (spacing decreases)
+          const waveSpacingReduction = (world.wave - 1) * 0.12;
+          const baseSpacing = clamp(3.0 - world.distance * 0.001 - waveSpacingReduction, 0.8, 2.8);
+          world.nextObstacle = rand(baseSpacing * 0.9, baseSpacing * 1.3);
+        }
+
+        world.nextPowerUp -= dt;
+        if (world.nextPowerUp <= 0) {
+          spawnPowerUp();
+          world.nextPowerUp = rand(5, 8);
+        }
+
+        world.nextBull -= dt;
+        if (world.nextBull <= 0) {
+          spawnBull();
+          const bullDelay = clamp(6 - world.wave * 0.6, 2.5, 6);
+          world.nextBull = rand(bullDelay * 0.8, bullDelay * 1.3);
+        }
+
+        updatePlayer(dt);
+        updateObstacles(dt);
+        updateBulls(dt);
+        updatePowerUps(dt);
+      } else if (world.gameOver && input.restart) {
+        resetGame();
+      } else if (!world.started && input.restart) {
+        startGame();
+      }
+      input.restart = false;
+
+      drawBackground();
+      drawObstacles();
+      drawBulls();
+      drawLaserBeam();
+      drawPowerUps();
+      drawPlayer();
+
+      const points = Math.floor(world.score);
+      const distance = Math.floor(world.distance);
+      const speed = Math.floor(world.scrollSpeed);
+      hud.textContent = `Points: ${points} | Wave: ${world.wave} | Lives: ${world.lives} | Distance: ${distance}m`;
+
+      if (world.gameOver) {
+        ctx.fillStyle = "rgba(8, 10, 20, 0.75)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#f0c144";
+        ctx.textAlign = "center";
+        ctx.font = "20px 'Press Start 2P', 'VT323', 'Courier New', monospace";
+        ctx.fillText("BULL DOWN", canvas.width / 2, canvas.height / 2 - 8);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "14px 'Press Start 2P', 'VT323', 'Courier New', monospace";
+        ctx.fillText("Press R to dash again", canvas.width / 2, canvas.height / 2 + 24);
+        showGameOver();
+      }
+
+      requestAnimationFrame(loop);
+    }
+    setupWorldState();
+    resizeGameView();
+    window.addEventListener("resize", resizeGameView);
+    if (overlayRestartBtn) {
+      overlayRestartBtn.addEventListener("click", resetGame);
+    }
+    if (overlayPostBtn) {
+      overlayPostBtn.addEventListener("click", postScoreToNostr);
+    }
+    if (startGameBtn) {
+      startGameBtn.addEventListener("click", startGame);
+    }
+    requestAnimationFrame(loop);
+  </script>
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="e56ec777-89f5-458f-8a81-45646a626d4a"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+</body>
+</html>

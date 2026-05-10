@@ -1,0 +1,22 @@
+{
+  "name": "chess-cvm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch server.ts",
+    "start": "bun run server.ts",
+    "type-check": "bun run tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "@contextvm/sdk": "^0.1.37",
+    "@modelcontextprotocol/sdk": "^1.20.2",
+    "chess.js": "^1.0.0",
+    "zod": "^3.23.8"
+  }
+}

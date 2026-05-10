@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Minotaur Labyrinth</title>
+  <style>
+    :root { background: #0b0b0f; color: #f2f2f2; font-family: "Press Start 2P", monospace; }
+    body { margin: 0; display: grid; place-items: center; height: 100vh; }
+    #wrap { text-align: center; }
+    canvas { background: #1a1a1f; image-rendering: pixelated; image-rendering: crisp-edges; border: 4px solid #3f3f4a; box-shadow: 0 0 30px #000; touch-action: manipulation; }
+    #info { margin-top: 10px; font-size: 12px; line-height: 1.5; }
+  </style>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="480" height="480"></canvas>
+    <div id="info">
+      Tap near the hero to move. Collect all jewels. Avoid the bull.<br>
+      <button id="startBtn">Start</button>
+      <button id="restartBtn" hidden>Restart</button>
+    </div>
+  </div>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const tile = 32;
+    const cols = 15, rows = 15;
+    const speed = 16; // slower: frames per tile step
+    const bullDelay = 24;
+    const palette = {
+      wall: "#2c3e50",
+      floor: "#111",
+      heroSkin: "#f2c38f",
+      heroCloth: "#5cd1ff",
+      bullHide: "#9b4d2a",
+      bullHorn: "#f2e8c9",
+      jewel: "#fffa75",
+      shadow: "#00000055"
+    };
+
+    const level = [
+      "###############",
+      "#..J.....#....#",
+      "#.###.#..#.#..#",
+      "#.#...#..#.#J.#",
+      "#.#.#.###.#.#.#",
+      "#...#.....#...#",
+      "###.#.###.#.###",
+      "#J..#.#J#.#...#",
+      "#.#.#.#.#.###.#",
+      "#.#...#.#.....#",
+      "#.#####.#####.#",
+      "#.....J...J...#",
+      "#.###.#####.#.#",
+      "#...#.....#...#",
+      "###############"
+    ];
+
+    const jewels = [];
+    let hero = { x: 1, y: 1, moveCD: 0 };
+    let bull = { x: 13, y: 13, moveCD: 0 };
+    let gameOver = false;
+    let gameStarted = false;
+
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        if (level[y][x] === "J") jewels.push({ x, y });
+      }
+    }
+
+    function isWall(x, y) {
+      return level[y][x] === "#";
+    }
+
+    function samePos(a, b) {
+      return a.x === b.x && a.y === b.y;
+    }
+
+    function reset() {
+      hero = { x: 1, y: 1, moveCD: 0 };
+      bull = { x: 13, y: 13, moveCD: 0 };
+      jewels.length = 0;
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (level[y][x] === "J") jewels.push({ x, y });
+        }
+      }
+      gameOver = false;
+    }
+
+    function tryMove(entity, dx, dy) {
+      const nx = entity.x + dx;
+      const ny = entity.y + dy;
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) return;
+      if (isWall(nx, ny)) return;
+      entity.x = nx;
+      entity.y = ny;
+    }
+
+    let inputDir = { x: 0, y: 0 };
+    window.addEventListener("keydown", (e) => {
+      if (gameOver || !gameStarted) return;
+      if (e.key === "ArrowUp") inputDir = { x: 0, y: -1 };
+      if (e.key === "ArrowDown") inputDir = { x: 0, y: 1 };
+      if (e.key === "ArrowLeft") inputDir = { x: -1, y: 0 };
+      if (e.key === "ArrowRight") inputDir = { x: 1, y: 0 };
+    });
+
+    canvas.addEventListener("touchstart", (e) => {
+      if (gameOver || !gameStarted) return;
+      const rect = canvas.getBoundingClientRect();
+      const t = e.touches[0];
+      const tx = t.clientX - rect.left;
+      const ty = t.clientY - rect.top;
+      const px = hero.x * tile + tile / 2;
+      const py = hero.y * tile + tile / 2;
+      const dx = tx - px;
+      const dy = ty - py;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        inputDir = { x: dx > 0 ? 1 : -1, y: 0 };
+      } else {
+        inputDir = { x: 0, y: dy > 0 ? 1 : -1 };
+      }
+    }, { passive: true });
+
+    canvas.addEventListener("click", (e) => {
+      if (gameOver || !gameStarted) return;
+      const rect = canvas.getBoundingClientRect();
+      const tx = e.clientX - rect.left;
+      const ty = e.clientY - rect.top;
+      const px = hero.x * tile + tile / 2;
+      const py = hero.y * tile + tile / 2;
+      const dx = tx - px;
+      const dy = ty - py;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        inputDir = { x: dx > 0 ? 1 : -1, y: 0 };
+      } else {
+        inputDir = { x: 0, y: dy > 0 ? 1 : -1 };
+      }
+    });
+
+    function bullPathStep(from, to) {
+      // simple BFS for next step toward hero
+      const queue = [{ x: from.x, y: from.y, prev: null }];
+      const seen = new Set([`${from.x},${from.y}`]);
+      while (queue.length) {
+        const node = queue.shift();
+        if (node.x === to.x && node.y === to.y) {
+          let cur = node;
+          while (cur.prev && !(cur.prev.x === from.x && cur.prev.y === from.y)) {
+            cur = cur.prev;
+          }
+          return { x: cur.x, y: cur.y };
+        }
+        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+        for (const [dx, dy] of dirs) {
+          const nx = node.x + dx;
+          const ny = node.y + dy;
+          if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+          if (isWall(nx, ny)) continue;
+          const key = `${nx},${ny}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            queue.push({ x: nx, y: ny, prev: node });
+          }
+        }
+      }
+      return from;
+    }
+
+    function drawPixelSprite(px, py, pattern, colors, scale = 2) {
+      for (let y = 0; y < pattern.length; y++) {
+        for (let x = 0; x < pattern[y].length; x++) {
+          const c = pattern[y][x];
+          if (c === ".") continue;
+          ctx.fillStyle = colors[c];
+          ctx.fillRect(px + x * scale, py + y * scale, scale, scale);
+        }
+      }
+    }
+
+    function drawHero(x, y) {
+      const px = x * tile + 8;
+      const py = y * tile + 8;
+      const pattern = [
+        "..aabb..",
+        ".aabbcc.",
+        ".aabbcc.",
+        "..bb..c.",
+        "..bb..c.",
+        "..dd..c.",
+        ".dd..cc.",
+        ".dd...."
+      ];
+      const colors = { a: palette.heroSkin, b: palette.heroSkin, c: palette.heroCloth, d: "#3b8ddb" };
+      ctx.fillStyle = palette.shadow;
+      ctx.fillRect(px + 2, py + 14, 16, 6);
+      drawPixelSprite(px, py, pattern, colors, 2);
+    }
+
+    function drawBull(x, y) {
+      const px = x * tile + 6;
+      const py = y * tile + 10;
+      const pattern = [
+        ".hh...hh.",
+        "hhhhh hh.",
+        ".hhhhh..",
+        ".bbbbbb.",
+        "bbbbbabb",
+        "bbbbbbbb",
+        ".bbbbbb.",
+        "..b..b.."
+      ];
+      const colors = { h: palette.bullHorn, b: palette.bullHide, a: "#7a351b" };
+      ctx.fillStyle = palette.shadow;
+      ctx.fillRect(px + 0, py + 14, 20, 6);
+      drawPixelSprite(px, py, pattern, colors, 2);
+    }
+
+    function drawJewel(x, y) {
+      const px = x * tile + 10;
+      const py = y * tile + 10;
+      ctx.fillStyle = palette.jewel;
+      ctx.fillRect(px + 4, py, 12, 8);
+      ctx.fillRect(px, py + 6, 20, 10);
+    }
+
+    function drawWorld() {
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          ctx.fillStyle = isWall(x, y) ? palette.wall : palette.floor;
+          ctx.fillRect(x * tile, y * tile, tile, tile);
+        }
+      }
+    }
+
+    function drawText(txt, color, size = 18) {
+      ctx.fillStyle = color;
+      ctx.font = `${size}px "Press Start 2P", monospace`;
+      ctx.textAlign = "center";
+      ctx.fillText(txt, canvas.width / 2, canvas.height / 2);
+    }
+
+    function update() {
+      if (gameOver || !gameStarted) return;
+
+      if (hero.moveCD === 0 && (inputDir.x !== 0 || inputDir.y !== 0)) {
+        tryMove(hero, inputDir.x, inputDir.y);
+        hero.moveCD = speed;
+        // collect jewels
+        for (let i = jewels.length - 1; i >= 0; i--) {
+          if (samePos(hero, jewels[i])) jewels.splice(i, 1);
+        }
+        if (jewels.length === 0) {
+          gameOver = true;
+          restartBtn.hidden = false;
+          setTimeout(() => drawText("You escaped!", "#7eff99"), 50);
+        }
+      } else if (hero.moveCD > 0) {
+        hero.moveCD--;
+      }
+
+      if (bull.moveCD === 0) {
+        const step = bullPathStep(bull, hero);
+        bull.x = step.x;
+        bull.y = step.y;
+        bull.moveCD = bullDelay;
+      } else {
+        bull.moveCD--;
+      }
+
+      if (samePos(hero, bull)) {
+        gameOver = true;
+        restartBtn.hidden = false;
+        setTimeout(() => drawText("Caught!", "#ff5c5c"), 50);
+      }
+    }
+
+    function render() {
+      drawWorld();
+      jewels.forEach(j => drawJewel(j.x, j.y));
+      drawHero(hero.x, hero.y);
+      drawBull(bull.x, bull.y);
+      if (gameOver || !gameStarted) {
+        ctx.fillStyle = "#000000aa";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const msg = !gameStarted ? "Tap Start" : jewels.length === 0 ? "You escaped!" : "Caught!";
+        drawText(msg, !gameStarted ? "#f2f2f2" : jewels.length === 0 ? "#7eff99" : "#ff5c5c");
+        if (gameOver) drawText("Use Restart button", "#f2f2f2", 12);
+      }
+    }
+
+    function loop() {
+      update();
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener("click", () => {
+      reset();
+      gameStarted = true;
+      gameOver = false;
+      restartBtn.hidden = true;
+      startBtn.hidden = true;
+    });
+
+    restartBtn.addEventListener("click", () => {
+      reset();
+      gameStarted = true;
+      gameOver = false;
+      restartBtn.hidden = true;
+      startBtn.hidden = true;
+    });
+
+    reset();
+    loop();
+  </script>
+</body>
+</html>

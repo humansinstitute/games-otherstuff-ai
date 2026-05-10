@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dumpling Town</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffb7c5">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --sakura-pink: #ffb7c5;
+            --soft-pink: #ffd4dc;
+            --cream: #fff8f0;
+            --warm-brown: #8b6914;
+            --dumpling-beige: #f5e6d3;
+            --bamboo-green: #7fb069;
+            --sky-blue: #87ceeb;
+            --soft-shadow: rgba(139, 105, 20, 0.2);
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: linear-gradient(180deg, var(--sky-blue) 0%, var(--soft-pink) 100%);
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #game-title {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            color: var(--warm-brown);
+            text-shadow: 2px 2px 0 white, 4px 4px 0 var(--soft-shadow);
+            letter-spacing: 2px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #game-title.visible {
+            opacity: 1;
+        }
+
+        #game-subtitle {
+            display: none;
+        }
+
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--cream);
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        /* Start Screen */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, var(--sky-blue) 0%, var(--soft-pink) 100%);
+            padding: 2rem;
+            text-align: center;
+            z-index: 100;
+        }
+
+        #start-screen.hidden {
+            display: none;
+        }
+
+        .dumpling-logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: bounce 1s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .start-title {
+            font-size: 2rem;
+            color: var(--warm-brown);
+            margin-bottom: 0.5rem;
+        }
+
+        .start-subtitle {
+            font-size: 1rem;
+            color: #999;
+            margin-bottom: 2rem;
+        }
+
+        .auth-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+            max-width: 280px;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--sakura-pink);
+            color: white;
+            box-shadow: 0 4px 0 #e89ca8;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #e89ca8;
+        }
+
+        .btn-primary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #e89ca8;
+        }
+
+        .btn-secondary {
+            background: var(--bamboo-green);
+            color: white;
+            box-shadow: 0 4px 0 #5a8a4a;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #5a8a4a;
+        }
+
+        .btn-secondary:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #5a8a4a;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        /* Filling Selection Modal */
+        #filling-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, var(--sky-blue) 0%, var(--soft-pink) 100%);
+            padding: 1.5rem;
+            z-index: 100;
+        }
+
+        #filling-modal.visible {
+            display: flex;
+        }
+
+        .filling-title {
+            font-size: 1.5rem;
+            color: var(--warm-brown);
+            margin-bottom: 1.5rem;
+        }
+
+        .filling-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .filling-option {
+            width: 100px;
+            height: 100px;
+            border: 4px solid transparent;
+            border-radius: 16px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px var(--soft-shadow);
+        }
+
+        .filling-option:hover {
+            transform: scale(1.05);
+            border-color: var(--sakura-pink);
+        }
+
+        .filling-option.selected {
+            border-color: var(--sakura-pink);
+            background: var(--soft-pink);
+        }
+
+        .filling-emoji {
+            font-size: 2.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .filling-name {
+            font-size: 0.75rem;
+            color: var(--warm-brown);
+            font-weight: 700;
+        }
+
+        /* Player Info */
+        #player-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            color: var(--warm-brown);
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 8px var(--soft-shadow);
+            z-index: 50;
+        }
+
+        #player-info.visible {
+            display: flex;
+        }
+
+        .player-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--dumpling-beige);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            padding: 0 20px;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .control-pad {
+            pointer-events: auto;
+            display: grid;
+            grid-template-columns: repeat(3, 50px);
+            grid-template-rows: repeat(3, 50px);
+            gap: 4px;
+        }
+
+        .d-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.35);
+            color: rgba(93, 64, 55, 0.7);
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .d-btn:active {
+            background: rgba(255, 183, 197, 0.5);
+            color: white;
+        }
+
+        .d-btn.empty {
+            visibility: hidden;
+        }
+
+        .action-buttons {
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 183, 197, 0.5);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: none;
+        }
+
+        .action-btn:active {
+            background: rgba(255, 183, 197, 0.7);
+        }
+
+        .action-btn.exit-btn {
+            background: rgba(139, 105, 20, 0.5);
+            display: none;
+        }
+
+        .action-btn.exit-btn:active {
+            background: rgba(139, 105, 20, 0.7);
+        }
+
+        .action-btn.exit-btn.visible {
+            display: block;
+        }
+
+        /* Instructions */
+        .instructions {
+            margin-top: 1.5rem;
+            font-size: 0.875rem;
+            color: #999;
+        }
+
+        .instructions kbd {
+            background: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 0 #ddd;
+            margin: 0 0.25rem;
+        }
+
+        /* Menu */
+        #menu {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 0.75rem;
+            border-radius: 12px;
+            display: none;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: 0 4px 16px var(--soft-shadow);
+            min-width: 160px;
+            z-index: 50;
+        }
+
+        #menu.visible {
+            display: flex;
+        }
+
+        #menu-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            font-size: 1.5rem;
+            box-shadow: 0 2px 8px var(--soft-shadow);
+            display: none;
+            z-index: 50;
+        }
+
+        #menu-toggle.visible {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @media (max-width: 600px) {
+            #game-title {
+                font-size: 1.75rem;
+            }
+
+            #mobile-controls {
+                display: flex;
+            }
+
+            .instructions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1 id="game-title">Dumpling Town</h1>
+        <p id="game-subtitle">~ A cozy dumpling adventure ~</p>
+
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <div class="dumpling-logo">🥟</div>
+            <h2 class="start-title">Welcome!</h2>
+            <p class="start-subtitle">Choose how to enter the town</p>
+
+            <div class="auth-buttons">
+                <button class="btn btn-primary" id="btn-continue-save" style="display: none;">
+                    <span>Continue Save</span>
+                </button>
+                <button class="btn btn-primary" id="btn-play-guest">
+                    <span>Play as Guest</span>
+                </button>
+                <button class="btn btn-secondary" id="btn-login-nostr">
+                    <span>Login with Nostr</span>
+                </button>
+            </div>
+
+            <div class="instructions">
+                <p>Move with <kbd>Arrow Keys</kbd> or <kbd>WASD</kbd></p>
+                <p>Interact with <kbd>Space</kbd> or <kbd>E</kbd></p>
+            </div>
+        </div>
+
+        <!-- Filling Selection Modal -->
+        <div id="filling-modal">
+            <h2 class="filling-title">Choose Your Filling!</h2>
+            <div class="filling-grid">
+                <button class="filling-option" data-filling="pork">
+                    <span class="filling-emoji">🐷</span>
+                    <span class="filling-name">Pork</span>
+                </button>
+                <button class="filling-option" data-filling="shrimp">
+                    <span class="filling-emoji">🦐</span>
+                    <span class="filling-name">Shrimp</span>
+                </button>
+                <button class="filling-option" data-filling="veggie">
+                    <span class="filling-emoji">🥬</span>
+                    <span class="filling-name">Veggie</span>
+                </button>
+                <button class="filling-option" data-filling="sweet">
+                    <span class="filling-emoji">🍓</span>
+                    <span class="filling-name">Sweet</span>
+                </button>
+            </div>
+            <button class="btn btn-primary" id="btn-confirm-filling" disabled>
+                Let's Go!
+            </button>
+        </div>
+
+        <!-- Player Info HUD -->
+        <div id="player-info">
+            <div class="player-avatar">🥟</div>
+            <span id="player-name">Guest</span>
+        </div>
+
+        <!-- Menu Toggle -->
+        <button id="menu-toggle">☰</button>
+
+        <!-- Menu -->
+        <div id="menu">
+            <button class="btn btn-small btn-primary" id="btn-change-filling">Change Filling</button>
+            <button class="btn btn-small btn-secondary" id="btn-view-keys">View Keys</button>
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <div class="control-pad">
+            <div class="d-btn empty"></div>
+            <button class="d-btn" data-dir="up">↑</button>
+            <div class="d-btn empty"></div>
+            <button class="d-btn" data-dir="left">←</button>
+            <div class="d-btn empty"></div>
+            <button class="d-btn" data-dir="right">→</button>
+            <div class="d-btn empty"></div>
+            <button class="d-btn" data-dir="down">↓</button>
+            <div class="d-btn empty"></div>
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn exit-btn" id="btn-exit">EXIT</button>
+            <button class="action-btn" id="btn-interact">ACT</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { Game } from './game.js';
+        import { NostrAuth } from './nostr.js';
+        import { GameAPI } from './api.js';
+
+        // Initialize game
+        const canvas = document.getElementById('game-canvas');
+
+        // Set canvas to fill viewport exactly
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            if (window.game) {
+                window.game.onResize(rect.width, rect.height);
+            }
+        }
+
+        // Initialize canvas size before creating game
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        const nostr = new NostrAuth();
+        const api = new GameAPI(nostr);
+        api.checkServer(); // Non-blocking server detection
+
+        const game = new Game(canvas, api);
+        window.game = game;
+
+        // Resize again after game is created to ensure proper sizing
+        resizeCanvas();
+
+        // DOM Elements
+        const startScreen = document.getElementById('start-screen');
+        const fillingModal = document.getElementById('filling-modal');
+        const playerInfo = document.getElementById('player-info');
+        const playerName = document.getElementById('player-name');
+        const menuToggle = document.getElementById('menu-toggle');
+        const menu = document.getElementById('menu');
+
+        // Check for existing save and show continue button
+        const continueBtn = document.getElementById('btn-continue-save');
+        if (game.hasSavedGame()) {
+            continueBtn.style.display = 'flex';
+        }
+
+        // Continue from save
+        continueBtn.addEventListener('click', async () => {
+            const player = await nostr.ensurePlayer();
+            playerName.textContent = player.shortNpub;
+            // Load save data and start directly (skip filling selection)
+            game.loadAndStart();
+            startScreen.classList.add('hidden');
+            playerInfo.classList.add('visible');
+            menuToggle.classList.add('visible');
+        });
+
+        // Auth buttons
+        document.getElementById('btn-play-guest').addEventListener('click', async () => {
+            const player = await nostr.ensurePlayer();
+            playerName.textContent = player.shortNpub;
+            showFillingSelection();
+        });
+
+        document.getElementById('btn-login-nostr').addEventListener('click', async () => {
+            try {
+                const player = await nostr.loginWithExtension();
+                playerName.textContent = player.shortNpub;
+                showFillingSelection();
+            } catch (e) {
+                alert('Nostr extension not found. Please install Alby or nos2x.');
+            }
+        });
+
+        // Filling selection
+        const fillingOptions = document.querySelectorAll('.filling-option');
+        const confirmBtn = document.getElementById('btn-confirm-filling');
+        let selectedFilling = null;
+
+        fillingOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                fillingOptions.forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedFilling = option.dataset.filling;
+                confirmBtn.disabled = false;
+            });
+        });
+
+        confirmBtn.addEventListener('click', () => {
+            if (selectedFilling) {
+                game.setPlayerFilling(selectedFilling);
+                fillingModal.classList.remove('visible');
+                playerInfo.classList.add('visible');
+                menuToggle.classList.add('visible');
+                game.start();
+            }
+        });
+
+        function showFillingSelection() {
+            startScreen.classList.add('hidden');
+            fillingModal.classList.add('visible');
+        }
+
+        // Menu toggle
+        menuToggle.addEventListener('click', () => {
+            menu.classList.toggle('visible');
+        });
+
+        document.getElementById('btn-change-filling').addEventListener('click', () => {
+            game.pause();
+            fillingModal.classList.add('visible');
+            menu.classList.remove('visible');
+        });
+
+        document.getElementById('btn-view-keys').addEventListener('click', async () => {
+            const keys = await nostr.getKeys();
+            alert(`Public Key (npub):\n${keys.npub}\n\nPrivate Key (nsec):\n${keys.nsec || '(using extension)'}`);
+            menu.classList.remove('visible');
+        });
+
+        // Mobile controls
+        const dpadBtns = document.querySelectorAll('.d-btn[data-dir]');
+        dpadBtns.forEach(btn => {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                game.setMobileInput(btn.dataset.dir, true);
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                game.setMobileInput(btn.dataset.dir, false);
+            });
+        });
+
+        document.getElementById('btn-interact').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            game.interact();
+        });
+
+        // Exit button for mobile (exits buildings)
+        const exitBtn = document.getElementById('btn-exit');
+        exitBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            game.exitBuilding();
+        });
+        exitBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            game.exitBuilding();
+        });
+
+        // Show/hide exit button based on game state
+        setInterval(() => {
+            const isInside = game.state === 'inside_building' || game.state === 'shopping';
+            exitBtn.classList.toggle('visible', isInside);
+        }, 100);
+
+        // Tap/click input for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            // Scale coordinates to canvas internal size
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (touch.clientX - rect.left) * scaleX;
+            const y = (touch.clientY - rect.top) * scaleY;
+            game.handleTap(x, y);
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            // Scale coordinates to canvas internal size
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            game.handleTap(x, y);
+        });
+
+        // Keyboard input
+        document.addEventListener('keydown', (e) => game.handleKeyDown(e));
+        document.addEventListener('keyup', (e) => game.handleKeyUp(e));
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!menu.contains(e.target) && e.target !== menuToggle) {
+                menu.classList.remove('visible');
+            }
+        });
+
+        // Expose for debugging
+        window.DumplingTown = { game, nostr, api };
+    </script>
+</body>
+</html>

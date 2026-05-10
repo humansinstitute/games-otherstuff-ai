@@ -1,0 +1,16 @@
+{
+  "name": "Hangtime",
+  "short_name": "Hangtime",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0c0f1a",
+  "theme_color": "#0c0f1a",
+  "icons": [
+    {
+      "src": "assets/icon-cow-balloon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-word5.png">
+  <link rel="shortcut icon" type="image/png" sizes="512x512" href="assets/icon-word5.png">
+  <link rel="apple-touch-icon" href="assets/icon-word5.png">
+  <meta name="theme-color" content="#121213">
+  <title>WORD5</title>
+  <style>
+    /* Nostr UI styles */
+    .header-left {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .avatar-bubble {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid #3a3a3c;
+      background: #1a1a1b;
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      transition: transform 0.1s ease;
+    }
+    .avatar-bubble:active { transform: translateY(1px); }
+    .avatar-dropdown {
+      position: absolute;
+      top: 44px;
+      left: 0;
+      min-width: 240px;
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      padding: 12px;
+      display: none;
+      z-index: 1200;
+    }
+    .avatar-dropdown.open { display: block; }
+    .avatar-label {
+      color: #ffffff;
+      font-size: 12px;
+      margin-bottom: 10px;
+      word-break: break-all;
+    }
+    .nostr-btn {
+      width: 100%;
+      background: #2a2a2b;
+      color: #ffffff;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .nostr-btn:hover { background: #3a3a3b; }
+    .nostr-btn:active { transform: translateY(1px); }
+    .nostr-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid #3a3a3c;
+      background: #121213;
+      color: #ffffff;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    #keysModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+      padding: 12px;
+    }
+    #keysModalInner {
+      width: min(92vw, 420px);
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    }
+    #keysModalNpub, #keysModalNsec {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      padding: 8px 10px;
+      border: 1px solid #3a3a3c;
+      border-radius: 6px;
+      background: #121213;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    #keysModalToggle {
+      width: 40px;
+      height: 40px;
+      font-size: 16px;
+    }
+    .help-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #3a3a3c;
+      background: transparent;
+      color: #818384;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .help-btn:hover {
+      color: #ffffff;
+      border-color: #818384;
+    }
+    #helpModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+      padding: 12px;
+    }
+    #helpModal.visible { display: flex; }
+    #helpModalInner {
+      width: min(92vw, 400px);
+      background: #1a1a1b;
+      border: 1px solid #3a3a3c;
+      color: #ffffff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #helpModalInner h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+    #helpModalInner p {
+      margin: 0 0 12px;
+      font-size: 13px;
+      color: #b0b0b0;
+      line-height: 1.5;
+    }
+    .help-key-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .help-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .help-key-label {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    #keysQrContainer { margin-top: 8px; display: flex; justify-content: center; }
+    :root {
+      --bg: #121213;
+      --tile-bg: #3a3a3c;
+      --tile-border: #3a3a3c;
+      --tile-border-empty: #3a3a3c;
+      --tile-text: #ffffff;
+      --correct: #9333ea;
+      --present: #f97316;
+      --absent: #3a3a3c;
+      --key-bg: #818384;
+      --key-text: #ffffff;
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      height: 100dvh; /* Use dynamic viewport height */
+      height: 100vh; /* Fallback for older browsers */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg);
+      color: #ffffff;
+      font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+      /* Account for browser bottom bars */
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+    @supports (height: 100dvh) {
+      body { height: 100dvh; }
+    }
+    .header {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #3a3a3c;
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .timer {
+      font-size: 14px;
+      color: #818384;
+      text-align: center;
+      padding: 8px 0;
+    }
+    .timer-identity {
+      font-size: 14px;
+      color: #818384;
+      text-align: center;
+      padding-bottom: 8px;
+    }
+    .timer-identity[hidden] {
+      display: none;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .nav-link {
+      color: #818384;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+      cursor: pointer;
+    }
+    .nav-link:hover {
+      color: #ffffff;
+      background: rgba(147, 51, 234, 0.1);
+    }
+    .nav-link.active {
+      color: #9333ea;
+    }
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      width: 100%;
+      max-width: 500px;
+      padding: 8px 16px;
+      gap: 8px;
+      min-height: 0; /* Allow flex children to shrink below content size */
+      overflow: hidden;
+    }
+    .board-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .board {
+      display: grid;
+      grid-template-rows: repeat(6, 1fr);
+      gap: 5px;
+      padding: 10px;
+      flex-shrink: 0;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 5px;
+    }
+    .tile {
+      width: clamp(48px, 12vw, 58px);
+      height: clamp(48px, 12vw, 58px);
+      border: 2px solid var(--tile-border-empty);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(24px, 6vw, 32px);
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: transform 0.1s;
+    }
+    .tile.filled {
+      border-color: #565758;
+      animation: pop 0.1s;
+    }
+    .tile.reveal {
+      animation: flip 0.5s ease forwards;
+    }
+    .tile.correct {
+      background: var(--correct);
+      border-color: var(--correct);
+    }
+    .tile.present {
+      background: var(--present);
+      border-color: var(--present);
+    }
+    .tile.absent {
+      background: var(--absent);
+      border-color: var(--absent);
+    }
+    @keyframes pop {
+      50% { transform: scale(1.1); }
+    }
+    @keyframes flip {
+      0% { transform: rotateX(0); }
+      50% { transform: rotateX(90deg); }
+      100% { transform: rotateX(0); }
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+    .shake {
+      animation: shake 0.3s;
+    }
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 484px;
+      padding: 0 4px 8px 4px;
+      box-sizing: border-box;
+      flex-shrink: 0; /* Never shrink the keyboard */
+    }
+    .keyboard-row {
+      display: flex;
+      justify-content: center;
+      gap: clamp(4px, 1vw, 6px);
+    }
+    .key {
+      flex: 1;
+      height: clamp(48px, 10vw, 58px);
+      min-width: 0;
+      max-width: 44px;
+      padding: 0 2px;
+      border: none;
+      border-radius: 4px;
+      background: var(--key-bg);
+      color: var(--key-text);
+      font-size: clamp(11px, 3vw, 14px);
+      font-weight: 700;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s;
+    }
+    .key:active {
+      transform: scale(0.95);
+    }
+    .key.wide {
+      flex: 1.5;
+      max-width: 65px;
+      font-size: clamp(10px, 2.5vw, 12px);
+    }
+    .key.correct {
+      background: var(--correct);
+    }
+    .key.present {
+      background: var(--present);
+    }
+    .key.absent {
+      background: var(--absent);
+    }
+    .toast-container {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: #ffffff;
+      color: #121213;
+      padding: 14px 24px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 14px;
+      animation: fadeIn 0.2s, fadeOut 0.2s 1.3s forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+    }
+    .modal-overlay.visible {
+      display: flex;
+    }
+    .modal {
+      background: #121213;
+      border: 1px solid #3a3a3c;
+      border-radius: 8px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .modal h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+    .modal p {
+      margin: 8px 0;
+      color: #818384;
+      font-size: 14px;
+    }
+    .modal .word-reveal {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      margin: 16px 0;
+      color: var(--correct);
+    }
+    .modal .stats {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin: 16px 0;
+    }
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #818384;
+    }
+    .modal .next-word {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #3a3a3c;
+    }
+    .modal .next-word-label {
+      font-size: 12px;
+      color: #818384;
+      margin-bottom: 4px;
+    }
+    .modal .next-word-timer {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+    .modal button {
+      padding: 14px 24px;
+      background: var(--correct);
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal button:hover {
+      opacity: 0.9;
+    }
+    #postNostrBtn {
+      background: #8b5cf6;
+    }
+    /* Hard mode toggle styles */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #3a3a3c;
+      margin-bottom: 10px;
+    }
+    .toggle-label {
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .toggle-sublabel {
+      color: #818384;
+      font-size: 10px;
+      margin-top: 2px;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #3a3a3c;
+      border-radius: 24px;
+      transition: 0.2s;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #ffffff;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background: #9333ea;
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    .toggle-switch input:disabled + .toggle-slider {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .hard-mode-indicator {
+      color: #f97316;
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <button id="nostrAvatarBubble" class="avatar-bubble" aria-label="Menu">☰</button>
+      <div id="nostrAvatarDropdown" class="avatar-dropdown">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Hard Mode</div>
+            <div class="toggle-sublabel">Must use revealed hints</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="hardModeToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="nostrAvatarLabel" class="avatar-label">Session: loading…</div>
+        <button id="loginNostrBtn" class="nostr-btn" style="background:#9333ea;">Login Nostr</button>
+        <button id="profileOpenBtn" class="nostr-btn">My Profile</button>
+        <button id="keysNewPlayerBtn" class="nostr-btn">New Player</button>
+        <button id="checkStreakBtn" class="nostr-btn" style="background:#9333ea;margin-top:8px;">Check my streak</button>
+        <button id="menuDonateBtn" class="nostr-btn" style="background:#f97316;margin-top:4px;">Donate ⚡</button>
+      </div>
+    </div>
+    <div class="title">WORD5<span id="hardModeIndicator" class="hard-mode-indicator" style="display:none;">*</span></div>
+    <div class="header-right">
+      <button id="donateBtn" class="nav-link" aria-label="Donate" style="border:none;background:none;padding:6px 8px;font-size:16px;cursor:pointer;">⚡</button>
+      <span class="nav-link active">Play</span>
+      <a href="social.html" class="nav-link">Social</a>
+      <button id="helpBtn" class="help-btn" aria-label="How to play">?</button>
+    </div>
+  </div>
+
+  <div class="game-container">
+    <div class="board-section">
+      <div class="board" id="board"></div>
+      <div class="timer" id="timer">Next word in: --:--:--</div>
+      <div class="timer-identity" id="timerIdentityLabel" hidden></div>
+    </div>
+    <div class="keyboard" id="keyboard"></div>
+  </div>
+
+  <div class="toast-container" id="toasts"></div>
+
+  <div class="modal-overlay" id="resultModal">
+    <div class="modal">
+      <h2 id="modalTitle">Result</h2>
+      <p id="modalMessage"></p>
+      <div class="word-reveal" id="modalWord"></div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-value" id="statPlayed">0</span>
+          <span class="stat-label">Played</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statWinPct">0</span>
+          <span class="stat-label">Win %</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statStreak">0</span>
+          <span class="stat-label">Streak</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statMaxStreak">0</span>
+          <span class="stat-label">Max Streak</span>
+        </div>
+      </div>
+      <div class="next-word">
+        <div class="next-word-label">NEXT WORD</div>
+        <div class="next-word-timer" id="modalTimer">--:--:--</div>
+      </div>
+      <div class="modal-buttons">
+        <button id="shareBtn">Share</button>
+        <button id="postNostrBtn">Post to Nostr</button>
+      </div>
+      <div id="postStatus" style="margin-top:8px; font-size:12px; color:#818384;"></div>
+    </div>
+  </div>
+
+  <div id="streakModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:1300;padding:12px;">
+    <div style="width:min(92vw,400px);background:#1a1a1b;border:1px solid #3a3a3c;color:#fff;border-radius:10px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,0.5);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-weight:700;font-size:18px;">My Stats</div>
+        <button id="streakModalClose" class="nostr-btn" style="width:auto;padding:8px 12px;margin:0;">Close</button>
+      </div>
+      <div id="streakModalContent" style="text-align:center;">
+        <div style="color:#818384;padding:24px;">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="keysModal">
+    <div id="keysModalInner">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="font-weight:700; font-size:14px;">User | Password</div>
+        <button id="keysModalClose" class="nostr-btn" style="width:auto; padding:8px 12px; margin:0;">Close</button>
+      </div>
+      <div id="keysModalNpub"></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div id="keysModalNsec" style="flex:1;"></div>
+        <button id="keysModalToggle" class="nostr-btn" aria-label="Reveal private key">👁</button>
+      </div>
+      <div id="keysModalNote" style="font-size:11px; color:#818384; margin-top:8px;"></div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button id="npubCopyBtn" class="nostr-btn" style="flex:1; margin:0;">Copy Username</button>
+        <button id="keysCopyBtn" class="nostr-btn session-only" style="flex:1; margin:0;">Copy Password</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="helpModal">
+    <div id="helpModalInner">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h3 style="margin:0;">How to Play</h3>
+        <button id="helpModalClose" class="nostr-btn" style="width:auto; padding:8px 12px; margin:0;">Close</button>
+      </div>
+      <p>Guess the 5-letter word in 6 tries. A new word appears every 24 hours. After each guess, the tiles change colour to show how close you are.</p>
+      <div class="help-key-row">
+        <div class="help-swatch" style="background:#9333ea;"></div>
+        <div class="help-key-label"><strong>Purple</strong> — correct letter in the correct spot</div>
+      </div>
+      <div class="help-key-row">
+        <div class="help-swatch" style="background:#f97316;"></div>
+        <div class="help-key-label"><strong>Orange</strong> — correct letter but in the wrong spot</div>
+      </div>
+      <div class="help-key-row">
+        <div class="help-swatch" style="background:#3a3a3c;"></div>
+        <div class="help-key-label"><strong>Grey</strong> — letter is not in the word</div>
+      </div>
+      <p style="margin-top:14px; font-size:12px; color:#818384;">The keyboard also updates with these colours to help you track which letters you've used.</p>
+    </div>
+  </div>
+
+  <script src="js/nostr-session.js"></script>
+  <script src="js/nostr-signers.js"></script>
+  <script src="js/nostr-post.js"></script>
+  <script src="js/nostr-ui.js"></script>
+  <script>
+    // Word lists - loaded from external files
+    let ANSWERS = [];  // Daily word pool (curated list)
+    let VALID_WORDS = [];  // All valid guesses (broad list)
+
+    // Game constants
+    const WORD_LENGTH = 5;
+    const MAX_GUESSES = 6;
+    const ROTATION_HOURS = 24;
+
+    // Seeded random number generator (mulberry32)
+    function seededRandom(seed) {
+      return function() {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    // Hash a date string to a number for seeding
+    function hashDate(dateStr) {
+      let hash = 0;
+      for (let i = 0; i < dateStr.length; i++) {
+        const char = dateStr.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      return Math.abs(hash);
+    }
+
+    // Load word lists from files
+    async function loadWordLists() {
+      try {
+        // Load answers (curated daily word pool)
+        const answersRes = await fetch('assets/answers.txt');
+        const answersText = await answersRes.text();
+        ANSWERS = answersText.split('\n')
+          .map(w => w.trim().toLowerCase())
+          .filter(w => w.length === 5);
+        console.log(`Loaded ${ANSWERS.length} answer words`);
+
+        // Load all valid words (for guess validation)
+        const validRes = await fetch('assets/wla.txt');
+        const validText = await validRes.text();
+        VALID_WORDS = validText.split('\n')
+          .map(w => w.trim().toLowerCase())
+          .filter(w => w.length === 5);
+
+        // Also add answers to valid words (in case they're not in the broad list)
+        const validSet = new Set(VALID_WORDS);
+        ANSWERS.forEach(w => validSet.add(w));
+        VALID_WORDS = Array.from(validSet);
+
+        console.log(`Loaded ${VALID_WORDS.length} valid guess words`);
+      } catch (e) {
+        console.error('Failed to load word lists:', e);
+        // Fallback to a small default list
+        ANSWERS = ['words', 'games', 'plays', 'think', 'guess'];
+        VALID_WORDS = ANSWERS;
+      }
+    }
+
+    // Game state
+    let _nostrSyncPromise = null;
+
+    let state = {
+      targetWord: '',
+      guesses: [],
+      currentGuess: '',
+      gameOver: false,
+      won: false,
+      periodId: 0,
+      hardMode: false,
+      stats: {
+        played: 0,
+        won: 0,
+        streak: 0,
+        maxStreak: 0
+      }
+    };
+
+    // DOM elements
+    const boardEl = document.getElementById('board');
+    const keyboardEl = document.getElementById('keyboard');
+    const toastsEl = document.getElementById('toasts');
+    const timerEl = document.getElementById('timer');
+    const resultModal = document.getElementById('resultModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalWord = document.getElementById('modalWord');
+    const modalTimer = document.getElementById('modalTimer');
+    const shareBtn = document.getElementById('shareBtn');
+
+    // Calculate current 4-hour period
+    function getCurrentPeriodId() {
+      const now = Date.now();
+      const msPerPeriod = ROTATION_HOURS * 60 * 60 * 1000;
+      return Math.floor(now / msPerPeriod);
+    }
+
+    // Get the date string for a period (for seeding)
+    function getDateForPeriod(periodId) {
+      const msPerPeriod = ROTATION_HOURS * 60 * 60 * 1000;
+      const date = new Date(periodId * msPerPeriod);
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD
+    }
+
+    // Get word for current period using seeded random
+    function getWordForPeriod(periodId) {
+      if (ANSWERS.length === 0) return 'ERROR';
+
+      // Get date string and create a seed from it
+      const dateStr = getDateForPeriod(periodId);
+      const seed = hashDate(dateStr + '_word5_daily');
+
+      // Use seeded random to pick a word from curated answers
+      const rng = seededRandom(seed);
+      const index = Math.floor(rng() * ANSWERS.length);
+
+      return ANSWERS[index].toUpperCase();
+    }
+
+    // Get time until next word
+    function getTimeUntilNextWord() {
+      const now = Date.now();
+      const msPerPeriod = ROTATION_HOURS * 60 * 60 * 1000;
+      const currentPeriodStart = Math.floor(now / msPerPeriod) * msPerPeriod;
+      const nextPeriodStart = currentPeriodStart + msPerPeriod;
+      return nextPeriodStart - now;
+    }
+
+    // Format milliseconds as HH:MM:SS
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    // Update hard mode toggle state (called when guesses change)
+    window.updateHardModeToggleState = function() {
+      const hardModeToggle = document.getElementById('hardModeToggle');
+      const hardModeIndicator = document.getElementById('hardModeIndicator');
+
+      // Update title indicator
+      if (hardModeIndicator) {
+        hardModeIndicator.style.display = state.hardMode ? 'inline' : 'none';
+      }
+
+      if (!hardModeToggle) return;
+
+      // Sync checkbox state
+      hardModeToggle.checked = state.hardMode;
+
+      const canToggle = state.guesses.length === 0 && !state.gameOver;
+      hardModeToggle.disabled = !canToggle;
+      const sublabel = document.querySelector('.toggle-sublabel');
+      if (sublabel) {
+        if (!canToggle && !state.gameOver) {
+          sublabel.textContent = 'Only at puzzle start';
+        } else {
+          sublabel.textContent = 'Must use revealed hints';
+        }
+      }
+    };
+
+    // Show toast message
+    function showToast(message, duration = 1500) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      toastsEl.appendChild(toast);
+      setTimeout(() => toast.remove(), duration);
+    }
+
+    // Initialize the game board
+    function initBoard() {
+      boardEl.innerHTML = '';
+      for (let i = 0; i < MAX_GUESSES; i++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        for (let j = 0; j < WORD_LENGTH; j++) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          row.appendChild(tile);
+        }
+        boardEl.appendChild(row);
+      }
+    }
+
+    // Initialize keyboard
+    function initKeyboard() {
+      const rows = [
+        ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+        ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+        ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫']
+      ];
+
+      keyboardEl.innerHTML = '';
+      rows.forEach(row => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'keyboard-row';
+        row.forEach(key => {
+          const keyEl = document.createElement('button');
+          keyEl.className = 'key' + (key.length > 1 ? ' wide' : '');
+          keyEl.textContent = key;
+          keyEl.dataset.key = key;
+          keyEl.addEventListener('click', () => handleKey(key));
+          rowEl.appendChild(keyEl);
+        });
+        keyboardEl.appendChild(rowEl);
+      });
+    }
+
+    // Update board display
+    function updateBoard() {
+      const rows = boardEl.querySelectorAll('.row');
+
+      // Update completed guesses
+      state.guesses.forEach((guess, rowIndex) => {
+        const tiles = rows[rowIndex].querySelectorAll('.tile');
+        const result = evaluateGuess(guess);
+        guess.split('').forEach((letter, i) => {
+          const tile = tiles[i];
+          tile.textContent = letter;
+          tile.className = 'tile ' + result[i];
+        });
+      });
+
+      // Update current guess
+      if (state.guesses.length < MAX_GUESSES) {
+        const currentRow = rows[state.guesses.length];
+        const tiles = currentRow.querySelectorAll('.tile');
+        for (let i = 0; i < WORD_LENGTH; i++) {
+          const tile = tiles[i];
+          const letter = state.currentGuess[i] || '';
+          tile.textContent = letter;
+          tile.className = 'tile' + (letter ? ' filled' : '');
+        }
+      }
+    }
+
+    // Evaluate a guess and return array of results
+    function evaluateGuess(guess) {
+      const result = Array(WORD_LENGTH).fill('absent');
+      const targetLetters = state.targetWord.split('');
+      const guessLetters = guess.split('');
+
+      // First pass: mark correct positions
+      guessLetters.forEach((letter, i) => {
+        if (letter === targetLetters[i]) {
+          result[i] = 'correct';
+          targetLetters[i] = null;
+        }
+      });
+
+      // Second pass: mark present letters
+      guessLetters.forEach((letter, i) => {
+        if (result[i] === 'correct') return;
+        const targetIndex = targetLetters.indexOf(letter);
+        if (targetIndex !== -1) {
+          result[i] = 'present';
+          targetLetters[targetIndex] = null;
+        }
+      });
+
+      return result;
+    }
+
+    // Update keyboard colors
+    function updateKeyboard() {
+      const letterStates = {};
+
+      state.guesses.forEach(guess => {
+        const result = evaluateGuess(guess);
+        guess.split('').forEach((letter, i) => {
+          const currentState = letterStates[letter];
+          const newState = result[i];
+
+          // Priority: correct > present > absent
+          if (newState === 'correct') {
+            letterStates[letter] = 'correct';
+          } else if (newState === 'present' && currentState !== 'correct') {
+            letterStates[letter] = 'present';
+          } else if (!currentState) {
+            letterStates[letter] = 'absent';
+          }
+        });
+      });
+
+      document.querySelectorAll('.key').forEach(key => {
+        const letter = key.dataset.key;
+        if (letter.length === 1 && letterStates[letter]) {
+          key.classList.remove('correct', 'present', 'absent');
+          key.classList.add(letterStates[letter]);
+        }
+      });
+    }
+
+    // Check hard mode constraints
+    // Returns { valid: true } or { valid: false, message: string }
+    function checkHardModeConstraints(guess) {
+      if (!state.hardMode || state.guesses.length === 0) {
+        return { valid: true };
+      }
+
+      // Build constraints from all previous guesses
+      const requiredPositions = {}; // letter -> [positions where it must be]
+      const requiredLetters = {};   // letter -> minimum count required
+
+      for (const prevGuess of state.guesses) {
+        const result = evaluateGuess(prevGuess);
+        const letterCounts = {};
+
+        prevGuess.split('').forEach((letter, i) => {
+          if (result[i] === 'correct') {
+            // Must have this letter at this position
+            if (!requiredPositions[letter]) requiredPositions[letter] = [];
+            if (!requiredPositions[letter].includes(i)) {
+              requiredPositions[letter].push(i);
+            }
+            letterCounts[letter] = (letterCounts[letter] || 0) + 1;
+          } else if (result[i] === 'present') {
+            // Must include this letter somewhere
+            letterCounts[letter] = (letterCounts[letter] || 0) + 1;
+          }
+        });
+
+        // Update required minimum counts
+        for (const [letter, count] of Object.entries(letterCounts)) {
+          requiredLetters[letter] = Math.max(requiredLetters[letter] || 0, count);
+        }
+      }
+
+      // Check guess against constraints
+      const guessLetters = guess.split('');
+
+      // Check correct positions first
+      for (const [letter, positions] of Object.entries(requiredPositions)) {
+        for (const pos of positions) {
+          if (guessLetters[pos] !== letter) {
+            const ordinal = pos + 1;
+            const suffix = ordinal === 1 ? 'st' : ordinal === 2 ? 'nd' : ordinal === 3 ? 'rd' : 'th';
+            return {
+              valid: false,
+              message: `${ordinal}${suffix} letter must be ${letter}`
+            };
+          }
+        }
+      }
+
+      // Check required letters are present with minimum counts
+      const guessCounts = {};
+      guessLetters.forEach(l => {
+        guessCounts[l] = (guessCounts[l] || 0) + 1;
+      });
+
+      for (const [letter, minCount] of Object.entries(requiredLetters)) {
+        const guessCount = guessCounts[letter] || 0;
+        if (guessCount < minCount) {
+          return {
+            valid: false,
+            message: `Guess must contain ${letter}`
+          };
+        }
+      }
+
+      return { valid: true };
+    }
+
+    // Handle key press
+    function handleKey(key) {
+      if (state.gameOver) return;
+
+      if (key === 'ENTER') {
+        submitGuess();
+      } else if (key === '⌫') {
+        state.currentGuess = state.currentGuess.slice(0, -1);
+        updateBoard();
+      } else if (state.currentGuess.length < WORD_LENGTH && /^[A-Z]$/.test(key)) {
+        state.currentGuess += key;
+        updateBoard();
+      }
+    }
+
+    // Submit current guess
+    function submitGuess() {
+      if (state.currentGuess.length !== WORD_LENGTH) {
+        const row = boardEl.querySelectorAll('.row')[state.guesses.length];
+        row.classList.add('shake');
+        setTimeout(() => row.classList.remove('shake'), 300);
+        showToast('Not enough letters');
+        return;
+      }
+
+      // Check if word is in list (case insensitive)
+      const isValidWord = VALID_WORDS.some(w => w.toUpperCase() === state.currentGuess);
+      if (!isValidWord) {
+        const row = boardEl.querySelectorAll('.row')[state.guesses.length];
+        row.classList.add('shake');
+        setTimeout(() => row.classList.remove('shake'), 300);
+        showToast('Not in word list');
+        return;
+      }
+
+      // Check hard mode constraints
+      const hardModeCheck = checkHardModeConstraints(state.currentGuess);
+      if (!hardModeCheck.valid) {
+        const row = boardEl.querySelectorAll('.row')[state.guesses.length];
+        row.classList.add('shake');
+        setTimeout(() => row.classList.remove('shake'), 300);
+        showToast(hardModeCheck.message);
+        return;
+      }
+
+      const guess = state.currentGuess;
+      state.guesses.push(guess);
+      state.currentGuess = '';
+
+      // Lock hard mode toggle after first guess
+      window.updateHardModeToggleState();
+
+      // Animate reveal
+      const rowIndex = state.guesses.length - 1;
+      const row = boardEl.querySelectorAll('.row')[rowIndex];
+      const tiles = row.querySelectorAll('.tile');
+      const result = evaluateGuess(guess);
+
+      tiles.forEach((tile, i) => {
+        setTimeout(() => {
+          tile.classList.add('reveal');
+          setTimeout(() => {
+            tile.classList.remove('reveal');
+            tile.classList.add(result[i]);
+          }, 250);
+        }, i * 300);
+      });
+
+      // Update keyboard after animation
+      setTimeout(async () => {
+        updateKeyboard();
+
+        // Ensure Nostr sync is complete before updating stats
+        // This prevents streak resetting after cache clear
+        if (_nostrSyncPromise) {
+          try { await _nostrSyncPromise; } catch (_) {}
+          _nostrSyncPromise = null;
+        }
+
+        // Check win/lose
+        if (guess === state.targetWord) {
+          state.gameOver = true;
+          state.won = true;
+          state.stats.played++;
+          state.stats.won++;
+          state.stats.streak++;
+          state.stats.maxStreak = Math.max(state.stats.streak, state.stats.maxStreak);
+          saveState();
+          setTimeout(() => showResult(), 500);
+        } else if (state.guesses.length >= MAX_GUESSES) {
+          state.gameOver = true;
+          state.won = false;
+          state.stats.played++;
+          state.stats.streak = 0;
+          saveState();
+          setTimeout(() => showResult(), 500);
+        } else {
+          saveState();
+        }
+      }, WORD_LENGTH * 300 + 300);
+    }
+
+    // Show result modal
+    function renderStatsSummary() {
+      const playedEl = document.getElementById('statPlayed');
+      const winPctEl = document.getElementById('statWinPct');
+      const streakEl = document.getElementById('statStreak');
+      const maxStreakEl = document.getElementById('statMaxStreak');
+      if (!playedEl || !winPctEl || !streakEl || !maxStreakEl) return;
+
+      playedEl.textContent = state.stats.played;
+      winPctEl.textContent = state.stats.played > 0
+        ? Math.round((state.stats.won / state.stats.played) * 100)
+        : 0;
+      streakEl.textContent = state.stats.streak;
+      maxStreakEl.textContent = state.stats.maxStreak;
+    }
+
+    function applyRepairedStats(nextStats) {
+      if (!nextStats || typeof nextStats !== 'object') return;
+      state.stats = {
+        played: Number(nextStats.played) || 0,
+        won: Number(nextStats.won) || 0,
+        streak: Number(nextStats.streak) || 0,
+        maxStreak: Number(nextStats.maxStreak) || 0,
+      };
+      saveState();
+      renderStatsSummary();
+    }
+
+    window.Word5App = {
+      applyRepairedStats,
+    };
+
+    function showResult() {
+      if (state.won) {
+        const messages = ['Genius!', 'Magnificent!', 'Impressive!', 'Splendid!', 'Great!', 'Phew!'];
+        modalTitle.textContent = messages[state.guesses.length - 1] || 'You Won!';
+        modalMessage.textContent = `You got it in ${state.guesses.length} ${state.guesses.length === 1 ? 'guess' : 'guesses'}!`;
+      } else {
+        modalTitle.textContent = 'Better luck next time!';
+        modalMessage.textContent = 'The word was:';
+      }
+
+      modalWord.textContent = state.targetWord;
+      renderStatsSummary();
+
+      resultModal.classList.add('visible');
+    }
+
+    // Generate share text
+    function generateShareText() {
+      const periodNum = state.periodId % 1000;
+      const hardModeStr = state.hardMode ? '*' : '';
+      let text = `WORD5 #${periodNum} ${state.won ? state.guesses.length : 'X'}/${MAX_GUESSES}${hardModeStr}${state.hardMode ? ' (Hard Mode)' : ''}\n\n`;
+
+      state.guesses.forEach(guess => {
+        const result = evaluateGuess(guess);
+        text += result.map(r => {
+          if (r === 'correct') return '🟪';
+          if (r === 'present') return '🟧';
+          return '⬛';
+        }).join('') + '\n';
+      });
+
+      text += '\nhttps://otherstuff.ai/word5/';
+
+      return text.trim();
+    }
+
+    // Save state to localStorage
+    function saveState() {
+      const saveData = {
+        periodId: state.periodId,
+        guesses: state.guesses,
+        gameOver: state.gameOver,
+        won: state.won,
+        hardMode: state.hardMode,
+        stats: state.stats
+      };
+      localStorage.setItem('words-game', JSON.stringify(saveData));
+    }
+
+    // Load state from localStorage
+    function loadState() {
+      const saved = localStorage.getItem('words-game');
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          state.stats = data.stats || state.stats;
+          // Hard mode persists across sessions
+          state.hardMode = data.hardMode || false;
+
+          // Check if it's the same period
+          if (data.periodId === state.periodId) {
+            state.guesses = data.guesses || [];
+            state.gameOver = data.gameOver || false;
+            state.won = data.won || false;
+          }
+        } catch (e) {
+          console.error('Failed to load state:', e);
+        }
+      }
+    }
+
+    // Background sync stats from Nostr (runs silently, doesn't block UI)
+    async function syncStatsFromNostr() {
+      console.log('[Nostr Sync] Starting background sync...');
+      try {
+        // Wait for NostrSession to be ready
+        if (window.NostrSigners?.ready) {
+          await window.NostrSigners.ready();
+        }
+
+        if (!window.NostrSigners) {
+          console.log('[Nostr Sync] NostrSigners not available');
+          return;
+        }
+
+        const signer = await window.NostrSigners.getActiveSigner();
+        const pubkey = await signer.getPublicKey();
+        console.log('[Nostr Sync] Got pubkey:', pubkey.slice(0, 12) + '...');
+
+        const { SimplePool } = await import('https://esm.sh/nostr-tools@2?bundle');
+        const pool = new SimplePool();
+        const relays = window.NostrPost?.DEFAULT_RELAYS || [
+          'wss://relay.damus.io',
+          'wss://nos.lol',
+          'wss://relay.snort.social'
+        ];
+
+        // Query for this user's word5 posts (use #t tag - relays index standard tags)
+        console.log('[Nostr Sync] Querying relays:', relays);
+        const events = await pool.querySync(relays,
+          { kinds: [1], authors: [pubkey], '#t': ['word5'], limit: 100 }
+        );
+
+        try { pool.close(relays); } catch (_) {}
+
+        console.log('[Nostr Sync] Found', events?.length || 0, 'posts');
+
+        if (!events || events.length === 0) {
+          console.log('[Nostr Sync] No posts found for this pubkey');
+          return;
+        }
+
+        // Sort by created_at descending (most recent first)
+        events.sort((a, b) => b.created_at - a.created_at);
+
+        // Parse stats from all events
+        let nostrMaxStreak = 0;
+        let nostrPlayed = 0;
+        let nostrWon = 0;
+
+        // Walk events from most recent to oldest to find the best streak
+        // in the current unbroken win chain. This handles cache-clear scenarios
+        // where a recent post might have a low streak due to lost localStorage.
+        let bestChainStreak = 0;
+        let mostRecentPuzzle = 0;
+        let chainBroken = false;
+
+        for (const event of events) {
+          const tags = Object.fromEntries(
+            event.tags.filter(t => ['streak', 'maxStreak', 'played', 'won', 'puzzle', 'result'].includes(t[0]))
+              .map(t => [t[0], t[1]])
+          );
+
+          // Track highest aggregate stats across ALL posts
+          const ms = parseInt(tags.maxStreak, 10) || 0;
+          const pl = parseInt(tags.played, 10) || 0;
+          const wo = parseInt(tags.won, 10) || 0;
+          if (ms > nostrMaxStreak) nostrMaxStreak = ms;
+          if (pl > nostrPlayed) nostrPlayed = pl;
+          if (wo > nostrWon) nostrWon = wo;
+
+          // Get puzzle number from the most recent event
+          if (event === events[0]) {
+            const puzzleMatch = event.content.match(/WORD5\s*#(\d+)/i);
+            mostRecentPuzzle = puzzleMatch
+              ? parseInt(puzzleMatch[1], 10)
+              : (parseInt(tags.puzzle, 10) || 0);
+          }
+
+          // For streak chain: stop at first loss, but keep scanning for aggregates
+          if (!chainBroken) {
+            if (tags.result === 'X') {
+              chainBroken = true;
+            } else {
+              const s = parseInt(tags.streak, 10) || 0;
+              if (s > bestChainStreak) bestChainStreak = s;
+            }
+          }
+        }
+
+        // Validate streak recency: most recent post must be today or yesterday
+        const currentPuzzle = state.periodId % 1000;
+        const puzzleDiff = (currentPuzzle - mostRecentPuzzle + 1000) % 1000;
+        // Also check by timestamp as fallback (within ~48h)
+        const hoursSinceLastPost = (Date.now() / 1000 - events[0].created_at) / 3600;
+        const streakStillValid = puzzleDiff <= 1 || hoursSinceLastPost <= 48;
+
+        const validStreak = streakStillValid ? bestChainStreak : 0;
+
+        console.log('[Nostr Sync] Parsed from Nostr:', {
+          posts: events.length,
+          mostRecentPuzzle,
+          currentPuzzle,
+          puzzleDiff,
+          hoursSinceLastPost: Math.round(hoursSinceLastPost),
+          streakStillValid,
+          bestChainStreak,
+          nostr: { maxStreak: nostrMaxStreak, played: nostrPlayed, won: nostrWon },
+          local: { streak: state.stats.streak, maxStreak: state.stats.maxStreak, played: state.stats.played, won: state.stats.won }
+        });
+
+        // Update local state if Nostr has higher values
+        let updated = false;
+
+        if (nostrMaxStreak > state.stats.maxStreak) {
+          state.stats.maxStreak = nostrMaxStreak;
+          updated = true;
+        }
+        if (validStreak > state.stats.streak) {
+          state.stats.streak = validStreak;
+          updated = true;
+        }
+        if (nostrPlayed > state.stats.played) {
+          state.stats.played = nostrPlayed;
+          updated = true;
+        }
+        if (nostrWon > state.stats.won) {
+          state.stats.won = nostrWon;
+          updated = true;
+        }
+
+        if (updated) {
+          saveState();
+          renderStatsSummary();
+          console.log('[Nostr Sync] ✓ Stats updated from Nostr');
+        } else {
+          console.log('[Nostr Sync] No updates needed (local stats are current)');
+        }
+      } catch (e) {
+        // Silently fail - this is background sync, don't disrupt the game
+        console.log('[Nostr Sync] Skipped:', e.message || e);
+      }
+    }
+
+    // Update timer display
+    function updateTimer() {
+      const remaining = getTimeUntilNextWord();
+      const formatted = formatTime(remaining);
+      timerEl.textContent = `Next word in: ${formatted}`;
+      modalTimer.textContent = formatted;
+
+      // Check if new period started
+      const currentPeriod = getCurrentPeriodId();
+      if (currentPeriod !== state.periodId) {
+        // New word available - reload game
+        location.reload();
+      }
+    }
+
+    // Initialize game
+    async function init() {
+      // Load word lists first
+      await loadWordLists();
+
+      state.periodId = getCurrentPeriodId();
+      state.targetWord = getWordForPeriod(state.periodId);
+
+      loadState();
+      initBoard();
+      initKeyboard();
+      updateBoard();
+      updateKeyboard();
+      updateTimer();
+
+      // Update timer every second
+      setInterval(updateTimer, 1000);
+
+      // Initialize hard mode toggle
+      const hardModeToggle = document.getElementById('hardModeToggle');
+      hardModeToggle.checked = state.hardMode;
+      window.updateHardModeToggleState();
+
+      hardModeToggle.addEventListener('change', () => {
+        if (state.guesses.length > 0) {
+          // Revert toggle - can't change mid-game
+          hardModeToggle.checked = state.hardMode;
+          showToast('Can only change at puzzle start');
+          return;
+        }
+        state.hardMode = hardModeToggle.checked;
+        saveState();
+        showToast(state.hardMode ? 'Hard mode ON' : 'Hard mode OFF');
+      });
+
+      // Background sync stats from Nostr (store promise so win handler can await it)
+      _nostrSyncPromise = syncStatsFromNostr();
+
+      // If game was already over, show result
+      if (state.gameOver) {
+        setTimeout(() => showResult(), 500);
+      }
+
+      // Keyboard input
+      window.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (e.key === 'Enter') {
+          handleKey('ENTER');
+        } else if (e.key === 'Backspace') {
+          handleKey('⌫');
+        } else if (/^[a-zA-Z]$/.test(e.key)) {
+          handleKey(e.key.toUpperCase());
+        }
+      });
+
+      // Share button
+      shareBtn.addEventListener('click', () => {
+        const text = generateShareText();
+        if (navigator.share) {
+          navigator.share({ text });
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(text);
+          showToast('Copied to clipboard!');
+        }
+      });
+
+      // Post to Nostr button
+      const postNostrBtn = document.getElementById('postNostrBtn');
+      const postStatus = document.getElementById('postStatus');
+
+      function publishKind5555InBackground({ signer, relays, periodNum }) {
+        // Best-effort shadow publish for external leaderboard consumers.
+        void (async () => {
+          try {
+            const { SimplePool } = await import('https://esm.sh/nostr-tools@2?bundle');
+            const bgPool = new SimplePool();
+            const result = state.won ? String(state.guesses.length) : 'X';
+            const payload = {
+              game: 'word5',
+              puzzle: periodNum,
+              result,
+              hardMode: Boolean(state.hardMode),
+              streak: state.stats.streak,
+              maxStreak: state.stats.maxStreak,
+              played: state.stats.played,
+              won: state.stats.won,
+              version: 1
+            };
+            const unsigned = {
+              kind: 5555,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: [
+                ['t', 'word5'],
+                ['t', 'gaming'],
+                ['game', 'word5'],
+                ['difficulty', state.hardMode ? 'hard' : 'normal'],
+                ['result', result],
+                ['schema', 'word5.score.v1'],
+                ['source', 'https://otherstuff.ai/word5/'],
+                ['puzzle', String(periodNum)],
+                ['streak', String(state.stats.streak)],
+                ['maxStreak', String(state.stats.maxStreak)],
+                ['played', String(state.stats.played)],
+                ['won', String(state.stats.won)],
+                ['version', '1']
+              ],
+              content: JSON.stringify(payload)
+            };
+
+            const signed = await signer.signEvent(unsigned);
+            const pubPromises = bgPool.publish(relays, signed);
+            await Promise.allSettled(pubPromises);
+            try { bgPool.close(relays); } catch (_) {}
+          } catch (e) {
+            console.log('[Nostr 5555] Background publish skipped:', e?.message || e);
+          }
+        })();
+      }
+
+      postNostrBtn.addEventListener('click', async () => {
+        if (!window.NostrPost || !window.NostrSigners) {
+          showToast('Nostr not ready');
+          return;
+        }
+
+        const content = generateShareText();
+
+        if (!confirm(`Post this to Nostr?\n\n${content}`)) return;
+
+        postStatus.textContent = 'Posting...';
+
+        try {
+          const signer = await window.NostrSigners.getActiveSigner();
+          const { SimplePool } = await import('https://esm.sh/nostr-tools@2?bundle');
+          const pool = new SimplePool();
+
+          const relays = window.NostrPost.DEFAULT_RELAYS;
+          const periodNum = state.periodId % 1000;
+
+          const tags = [
+              ['t', 'word5'],
+              ['t', 'wordle'],
+              ['game', 'word5'],
+              ['puzzle', String(periodNum)],
+              ['result', state.won ? String(state.guesses.length) : 'X'],
+              // Streak and stats for leaderboards
+              ['streak', String(state.stats.streak)],
+              ['maxStreak', String(state.stats.maxStreak)],
+              ['played', String(state.stats.played)],
+              ['won', String(state.stats.won)]
+            ];
+          if (state.hardMode) {
+            tags.push(['hardMode', 'true']);
+          }
+
+          const unsigned = {
+            kind: 1,
+            created_at: Math.floor(Date.now() / 1000),
+            tags,
+            content
+          };
+
+          const signed = await signer.signEvent(unsigned);
+          const pubPromises = pool.publish(relays, signed);
+
+          // nostr-tools v2: publish() returns array of promises
+          const results = await Promise.allSettled(pubPromises);
+          const succeeded = results.some(r => r.status === 'fulfilled');
+
+          try { pool.close(relays); } catch (_) {}
+
+          if (!succeeded) {
+            throw new Error('No relay confirmed the post (timeout or all failed)');
+          }
+
+          postStatus.textContent = `Posted via ${signer.mode}`;
+          showToast('Posted to Nostr!');
+          publishKind5555InBackground({
+            signer,
+            relays,
+            periodNum
+          });
+        } catch (e) {
+          console.error('Nostr post failed:', e);
+          postStatus.textContent = `Failed: ${e.message || e}`;
+          showToast('Post failed');
+        }
+      });
+
+      // Help modal
+      const helpModal = document.getElementById('helpModal');
+      document.getElementById('helpBtn').addEventListener('click', () => {
+        helpModal.classList.add('visible');
+      });
+      document.getElementById('helpModalClose').addEventListener('click', () => {
+        helpModal.classList.remove('visible');
+      });
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) helpModal.classList.remove('visible');
+      });
+
+      // Close modal on outside click
+      resultModal.addEventListener('click', (e) => {
+        if (e.target === resultModal) {
+          resultModal.classList.remove('visible');
+        }
+      });
+    }
+
+    init();
+  </script>
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="33dd66ec-c775-4f00-9768-e1fe0a076c45"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+</body>
+</html>

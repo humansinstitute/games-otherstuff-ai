@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="1024x1024" href="assets/icon-neon.png">
+  <link rel="shortcut icon" type="image/png" sizes="1024x1024" href="assets/icon-neon.png">
+  <meta name="theme-color" content="#0c0f1a">
+  <title>Neon Block Breaker</title>
+  <style>
+    :root {
+      --bg-1: #0c0f1a;
+      --bg-2: #1a1f33;
+      --accent: #f5d100;
+      --accent-2: #5af5f0;
+      --paddle: #ff8c32;
+      --paddle-shadow: #c4651d;
+      --ball: #a855f7;
+      --ball-glow: rgba(168, 85, 247, 0.45);
+      --brick-1: #47f5bc;
+      --brick-2: #f5d147;
+      --brick-3: #5af5f0;
+      --grid-line: rgba(255, 255, 255, 0.08);
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 20%, #1c2240 0, #0b0d18 60%);
+      color: #e8ecff;
+      font-family: "Press Start 2P", "VT323", "Courier New", monospace;
+      letter-spacing: 0.5px;
+      image-rendering: pixelated;
+    }
+    .frame {
+      width: min(620px, 100vw - 24px);
+      max-height: 100svh;
+      background: linear-gradient(135deg, var(--bg-2), var(--bg-1));
+      border: 6px solid #0a0c14;
+      box-shadow:
+        0 0 0 4px #121629,
+        0 16px 40px rgba(0, 0, 0, 0.5);
+      padding: 12px;
+    }
+    .header {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .header-left {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .title {
+      color: var(--accent);
+      text-shadow: 2px 2px 0 #111;
+      text-align: center;
+    }
+    .game-wrap {
+      width: 540px;
+      height: 900px;
+      touch-action: none;
+    }
+    canvas {
+      width: 540px;
+      height: 900px;
+      background: repeating-linear-gradient(
+        90deg,
+        var(--grid-line),
+        var(--grid-line) 8px,
+        transparent 8px,
+        transparent 16px
+      );
+      border: 4px solid #101426;
+      display: block;
+      image-rendering: pixelated;
+    }
+    .footer {
+      margin-top: 8px;
+      font-size: 10px;
+      color: #cbd5ff;
+    }
+    .footer strong { color: var(--accent-2); }
+    /* Overlays */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+      pointer-events: none;
+    }
+    .overlay.visible { display: flex; }
+    .overlay-inner {
+      pointer-events: auto;
+      background: rgba(12, 15, 26, 0.92);
+      border: 2px solid #1f2740;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+      border-radius: 10px;
+      padding: 14px;
+      width: min(420px, 90vw);
+      color: #e8ecff;
+      text-align: center;
+      font-size: 12px;
+    }
+    .overlay h3 {
+      margin: 0 0 6px 0;
+      color: var(--accent);
+      font-size: 14px;
+    }
+    .overlay p { margin: 4px 0; }
+    .overlay .btn-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .overlay button {
+      background: #1d2542;
+      color: #e8ecff;
+      border: 1px solid #2f3656;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .overlay-love {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #cbd5ff;
+    }
+    .overlay-love a {
+      color: inherit;
+      text-decoration: none;
+      border-bottom: 1px dashed #5af5f0;
+    }
+    .start-btn {
+      font-size: 16px;
+      padding: 14px 20px;
+      width: 100%;
+      text-transform: uppercase;
+    }
+    .start-overlay-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .start-login-btn {
+      font-size: 12px;
+      padding: 10px 14px;
+    }
+    /* Avatar + dropdown */
+    .avatar-bubble {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid #0a0c14;
+      background: linear-gradient(135deg, #1d2542, #0f1326);
+      color: #f5d100;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+      transition: transform 0.1s ease;
+    }
+    .avatar-bubble:active { transform: translateY(1px); }
+    .avatar-dropdown {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      min-width: 220px;
+      background: #0f1326;
+      border: 1px solid #1f2740;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.4);
+      border-radius: 8px;
+      padding: 10px;
+      display: none;
+      z-index: 1200;
+    }
+    .avatar-dropdown.open { display: block; }
+    .avatar-label {
+      color: #e8ecff;
+      font-size: 11px;
+      margin-bottom: 8px;
+      word-break: break-all;
+    }
+    .nostr-btn {
+      width: 100%;
+      background: #1d2542;
+      color: #e8ecff;
+      border: 1px solid #2f3656;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .nostr-btn:active { transform: translateY(1px); }
+    .nostr-input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #2f3656;
+      background: #0c0f1a;
+      color: #e8ecff;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    /* Keys modal */
+    #keysModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+      padding: 12px;
+    }
+    #keysModalInner {
+      width: min(92vw, 480px);
+      background: #0f1326;
+      border: 1px solid #1f2740;
+      color: #e8ecff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+    }
+    #keysModalNpub, #keysModalNsec {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      padding: 6px 8px;
+      border: 1px solid #2f3656;
+      border-radius: 6px;
+      background: #0c0f1a;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+    #keysModalToggle {
+      width: 38px;
+      height: 38px;
+      font-size: 16px;
+    }
+    #keysQrContainer { margin-top: 6px; display: flex; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="header">
+      <div class="header-left">
+        <button id="nostrAvatarBubble" class="avatar-bubble" aria-label="Nostr identity">🟢</button>
+        <div id="nostrAvatarDropdown" class="avatar-dropdown">
+          <div id="nostrAvatarLabel" class="avatar-label">Session: loading…</div>
+          <button class="nostr-btn nostrLoginBtn">Login with Nostr (NIP-07)</button>
+          <button id="keysOpenBtn" class="nostr-btn">View keys</button>
+          <button id="keysCopyBtn" class="nostr-btn session-only">Copy session nsec</button>
+          <button id="keysQrBtn" class="nostr-btn session-only">Show session QR</button>
+          <input id="keysImportInput" class="nostr-input session-only" placeholder="Paste nsec to import">
+          <button id="keysImportBtn" class="nostr-btn session-only">Import nsec</button>
+          <button id="keysNewPlayerBtn" class="nostr-btn">New player</button>
+        </div>
+      </div>
+      <div class="title">NEON BLOCK BREAKER</div>
+      <div id="hud">Score: 0</div>
+    </div>
+    <div class="game-wrap">
+      <canvas id="game" width="540" height="900"></canvas>
+      <div id="startOverlay" class="overlay visible">
+        <div class="overlay-inner">
+          <h3>Neon Block Breaker</h3>
+          <p style="color:#cbd5ff;">Launch the purple ball and smash the grid.</p>
+          <div class="start-overlay-actions">
+            <button id="startGameBtn" class="start-btn">Start Game</button>
+            <button class="start-login-btn nostrLoginBtn">Login with NIP-07</button>
+          </div>
+          <div class="overlay-love">
+            <a href="https://otherstuff.ai" target="_blank" rel="noreferrer">Vibed with Love. otherstuff.ai</a>
+          </div>
+        </div>
+      </div>
+      <div id="gameOverlay" class="overlay">
+        <div class="overlay-inner">
+          <h3>Game Over</h3>
+          <p id="overlayScore">Score: —</p>
+          <p style="color:#cbd5ff;">Blocks cleared: <span id="overlayBlocks">0</span></p>
+          <div class="btn-row">
+            <button id="overlayRestartBtn">Start Game</button>
+            <button id="overlayPostBtn">Post score to Nostr</button>
+          </div>
+          <div id="overlayStatus" style="margin-top:6px; color:#a7b7ff;"></div>
+          <div class="overlay-love">
+            <a href="https://otherstuff.ai" target="_blank" rel="noreferrer">Vibed with Love. otherstuff.ai</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      Slide the paddle with <strong>A/D</strong> or <strong>←/→</strong>. Keep the ball in play. Press <strong>R</strong> to restart.
+    </div>
+  </div>
+  <div id="keysModal">
+    <div id="keysModalInner">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-weight:700; font-size:14px;">Session Keys</div>
+        <button id="keysModalClose" class="nostr-btn" style="width:auto; padding:6px 10px; margin:0;">Close</button>
+      </div>
+      <div id="keysModalNpub"></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div id="keysModalNsec" style="flex:1;"></div>
+        <button id="keysModalToggle" class="nostr-btn" aria-label="Reveal private key">👁</button>
+      </div>
+      <div id="keysModalNote" style="font-size:11px; color:#cbd5ff; margin-top:6px;"></div>
+      <div id="keysQrContainer"></div>
+    </div>
+  </div>
+  <script src="js/nostr-session.js"></script>
+  <script src="js/nostr-signers.js"></script>
+  <script src="js/nostr-post.js"></script>
+  <script src="js/nostr-ui.js"></script>
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const hud = document.getElementById("hud");
+    const SCORE_PER_BLOCK = 21;
+    const BASE_BALL_SPEED = 400;
+    const BASE_PADDLE_WIDTH = 120;
+    const PADDLE_BONUS_WIDTH = 20;
+    const MAX_PADDLE_POWERUPS = 2;
+    const palette = {
+      paddle: "#ff8c32",
+      paddleShadow: "#c4651d",
+      ball: "#a855f7",
+      ballGlow: "rgba(168, 85, 247, 0.4)",
+      brickColors: ["#47f5bc", "#f5d147", "#5af5f0", "#f56af0"],
+      gridLine: "rgba(255,255,255,0.03)",
+      void: "#080a16",
+      neon: "#1c2240",
+    };
+
+    const input = { left: false, right: false, restart: false };
+    const LEVELS = [
+      [
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 2, 2, 2, 2, 1],
+        [1, 2, 3, 3, 3, 3, 3, 2, 1],
+        [1, 2, 3, 4, 4, 4, 3, 2, 1],
+        [1, 2, 3, 3, 3, 3, 3, 2, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+      ],
+      [
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 2, 2, 2, 2, 2, 1, 0],
+        [1, 2, 3, 0, 3, 0, 3, 2, 1],
+        [1, 2, 0, 3, 3, 3, 0, 2, 1],
+        [0, 1, 2, 3, 3, 3, 2, 1, 0],
+        [0, 0, 1, 1, 1, 1, 1, 0, 0],
+      ],
+      [
+        [1, 0, 1, 0, 1, 0, 1, 0, 1],
+        [0, 2, 0, 2, 0, 2, 0, 2, 0],
+        [3, 0, 3, 0, 3, 0, 3, 0, 3],
+        [0, 4, 0, 4, 0, 4, 0, 4, 0],
+        [1, 0, 1, 0, 1, 0, 1, 0, 1],
+        [0, 2, 0, 2, 0, 2, 0, 2, 0],
+      ],
+      [
+        [1, 1, 0, 0, 3, 0, 0, 1, 1],
+        [1, 2, 2, 0, 3, 0, 2, 2, 1],
+        [0, 2, 3, 3, 3, 3, 3, 2, 0],
+        [0, 2, 3, 4, 4, 4, 3, 2, 0],
+        [1, 2, 3, 4, 4, 4, 3, 2, 1],
+        [1, 1, 0, 0, 3, 0, 0, 1, 1],
+      ],
+    ];
+    const POWERUP_INTERVAL = 5;
+    const world = {
+      started: false,
+      gameOver: false,
+      postedScore: false,
+      score: 0,
+      blocksCleared: 0,
+      lives: 1,
+      maxLives: 1,
+      elapsedTime: 0,
+      nextSpeedBoostAt: 5,
+      nextPowerUpAt: POWERUP_INTERVAL,
+      paddleBoosts: 0,
+      level: 0,
+    };
+
+    const paddle = {
+      w: BASE_PADDLE_WIDTH,
+      h: 18,
+      y: canvas.height - 90,
+      x: canvas.width / 2 - BASE_PADDLE_WIDTH / 2,
+      speed: 520,
+    };
+
+    const brickConfig = {
+      rows: 6,
+      cols: 9,
+      top: 110,
+      gap: 10,
+      height: 24,
+    };
+    const brickWidth =
+      (canvas.width - brickConfig.gap * (brickConfig.cols + 1)) / brickConfig.cols;
+    let bricks = [];
+    let powerUps = [];
+    let balls = [];
+    let currentBallSpeed = BASE_BALL_SPEED;
+
+    const startOverlay = document.getElementById("startOverlay");
+    const startGameBtn = document.getElementById("startGameBtn");
+    const overlay = document.getElementById("gameOverlay");
+    const overlayScore = document.getElementById("overlayScore");
+    const overlayBlocks = document.getElementById("overlayBlocks");
+    const overlayRestartBtn = document.getElementById("overlayRestartBtn");
+    const overlayPostBtn = document.getElementById("overlayPostBtn");
+    const overlayStatus = document.getElementById("overlayStatus");
+
+    const frameEl = document.querySelector(".frame");
+    const headerEl = document.querySelector(".header");
+    const footerEl = document.querySelector(".footer");
+    const gameWrap = document.querySelector(".game-wrap");
+    let pointerDown = false;
+
+    function resizeGameView() {
+      // Directly size the playfield to available viewport space (no transforms).
+      const baseW = canvas.width;
+      const baseH = canvas.height;
+      const viewportH = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+      const viewportW = (window.visualViewport && window.visualViewport.width) || window.innerWidth;
+      const headerH = headerEl.getBoundingClientRect().height;
+      const footerH = footerEl.getBoundingClientRect().height;
+      const frameStyle = getComputedStyle(frameEl);
+      const paddingY = parseFloat(frameStyle.paddingTop) + parseFloat(frameStyle.paddingBottom);
+      const paddingX = parseFloat(frameStyle.paddingLeft) + parseFloat(frameStyle.paddingRight);
+      const borderY = parseFloat(frameStyle.borderTopWidth) + parseFloat(frameStyle.borderBottomWidth);
+      const borderX = parseFloat(frameStyle.borderLeftWidth) + parseFloat(frameStyle.borderRightWidth);
+      const gutter = 12; // extra breathing room
+
+      const availableHeight = Math.max(
+        320,
+        viewportH - headerH - footerH - paddingY - borderY - gutter
+      );
+      const availableWidth = Math.max(
+        320,
+        Math.min(frameEl.clientWidth - paddingX, viewportW - paddingX) - gutter
+      );
+
+      let targetHeight = Math.min(baseH, availableHeight);
+      let targetWidth = targetHeight * (baseW / baseH);
+
+      if (targetWidth > availableWidth) {
+        targetWidth = availableWidth;
+        targetHeight = targetWidth * (baseH / baseW);
+      }
+
+      canvas.style.width = `${targetWidth}px`;
+      canvas.style.height = `${targetHeight}px`;
+      gameWrap.style.width = `${targetWidth}px`;
+      gameWrap.style.height = `${targetHeight}px`;
+    }
+
+    const keys = {
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      a: "left",
+      d: "right",
+      A: "left",
+      D: "right",
+    };
+
+    window.addEventListener("keydown", (e) => {
+      if (keys[e.key]) input[keys[e.key]] = true;
+      if (e.key === "r" || e.key === "R") input.restart = true;
+    });
+    window.addEventListener("keyup", (e) => {
+      if (keys[e.key]) input[keys[e.key]] = false;
+    });
+
+    function setPointerMove(clientX) {
+      const isLeft = clientX < window.innerWidth * 0.5;
+      input.left = isLeft;
+      input.right = !isLeft;
+    }
+
+    function clearPointerMove() {
+      pointerDown = false;
+      input.left = false;
+      input.right = false;
+    }
+
+    gameWrap.addEventListener("pointerdown", (e) => {
+      pointerDown = true;
+      setPointerMove(e.clientX);
+      e.preventDefault();
+    });
+
+    window.addEventListener("pointermove", (e) => {
+      if (!pointerDown) return;
+      setPointerMove(e.clientX);
+    });
+
+    window.addEventListener("pointerup", clearPointerMove);
+    window.addEventListener("pointercancel", clearPointerMove);
+    window.addEventListener("pointerleave", clearPointerMove);
+
+    function buildLevel(levelIndex) {
+      const layout = LEVELS[levelIndex] || LEVELS[LEVELS.length - 1];
+      bricks = [];
+      layout.forEach((row, rowIdx) => {
+        row.forEach((cell, colIdx) => {
+          if (!cell) return;
+          const x = brickConfig.gap + colIdx * (brickWidth + brickConfig.gap);
+          const y = brickConfig.top + rowIdx * (brickConfig.height + brickConfig.gap);
+          const color =
+            palette.brickColors[(cell - 1) % palette.brickColors.length] || palette.brickColors[0];
+          bricks.push({ x, y, w: brickWidth, h: brickConfig.height, color });
+        });
+      });
+    }
+
+    function resetPaddle() {
+      paddle.w = BASE_PADDLE_WIDTH + world.paddleBoosts * PADDLE_BONUS_WIDTH;
+      paddle.x = clamp(canvas.width / 2 - paddle.w / 2, 8, canvas.width - paddle.w - 8);
+    }
+
+    function createBall({ attached = true, angle, x, y } = {}) {
+      const spawnX = x ?? paddle.x + paddle.w / 2;
+      const spawnY = y ?? paddle.y - 12;
+      const ball = {
+        x: spawnX,
+        y: spawnY,
+        radius: 9,
+        speed: currentBallSpeed,
+        velX: 0,
+        velY: -currentBallSpeed,
+        attached,
+        relaunchTimer: attached ? 0.4 : 0,
+      };
+      if (!attached) {
+        const spread = Math.PI / 3;
+        const launchAngle = angle ?? -Math.PI / 2 + (Math.random() - 0.5) * spread;
+        ball.velX = Math.cos(launchAngle) * ball.speed;
+        ball.velY = Math.sin(launchAngle) * ball.speed;
+        if (ball.velY > -120) {
+          ball.velY = -220;
+        }
+      }
+      return ball;
+    }
+
+    function resetBalls() {
+      balls = [createBall({ attached: true })];
+    }
+
+    function launchAttachedBalls() {
+      balls.forEach((ball) => {
+        if (ball.attached) {
+          ball.attached = false;
+          const spread = Math.PI / 3;
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * spread;
+          ball.velX = Math.cos(angle) * ball.speed;
+          ball.velY = Math.sin(angle) * ball.speed;
+          if (ball.velY > -120) {
+            ball.velY = -220;
+          }
+        }
+      });
+    }
+
+    function setupWorldState() {
+      world.postedScore = false;
+      world.score = 0;
+      world.blocksCleared = 0;
+      world.lives = world.maxLives;
+      world.paddleBoosts = 0;
+      world.gameOver = false;
+      world.level = 0;
+      world.elapsedTime = 0;
+      world.nextSpeedBoostAt = 5;
+      world.nextPowerUpAt = POWERUP_INTERVAL;
+      currentBallSpeed = BASE_BALL_SPEED;
+      buildLevel(world.level);
+      powerUps = [];
+      resetPaddle();
+      resetBalls();
+      if (overlayStatus) overlayStatus.textContent = "";
+    }
+
+    function hideStartOverlay() {
+      if (startOverlay) startOverlay.classList.remove("visible");
+    }
+
+    function startGame() {
+      if (world.started) return;
+      hideStartOverlay();
+      resetGame();
+    }
+
+    function resetGame() {
+      world.gameOver = false;
+      world.started = true;
+      setupWorldState();
+      if (overlay) overlay.style.display = "none";
+      launchAttachedBalls();
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function boostBallSpeed() {
+      currentBallSpeed *= 1.02;
+      balls.forEach((ball) => {
+        ball.speed = currentBallSpeed;
+        const magnitude = Math.hypot(ball.velX, ball.velY);
+        if (magnitude > 0) {
+          const scale = ball.speed / magnitude;
+          ball.velX *= scale;
+          ball.velY *= scale;
+        }
+      });
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = palette.void;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = palette.gridLine;
+      for (let y = 40; y < canvas.height; y += 24) {
+        ctx.fillRect(0, y, canvas.width, 1);
+      }
+      for (let x = 0; x < canvas.width; x += 24) {
+        ctx.fillRect(x, 40, 1, canvas.height - 40);
+      }
+      ctx.fillStyle = palette.neon;
+      ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
+    }
+
+    function drawPaddle() {
+      ctx.fillStyle = palette.paddleShadow;
+      ctx.fillRect(paddle.x, paddle.y + 6, paddle.w, paddle.h);
+      ctx.fillStyle = palette.paddle;
+      ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+    }
+
+    function drawBall(ball) {
+      ctx.fillStyle = palette.ballGlow;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius + 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = palette.ball;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawBricks() {
+      bricks.forEach((brick) => {
+        ctx.fillStyle = "#05070f";
+        ctx.fillRect(brick.x - 2, brick.y + brick.h, brick.w + 4, 6);
+        ctx.fillStyle = brick.color;
+        ctx.fillRect(brick.x, brick.y, brick.w, brick.h);
+      });
+    }
+
+    function drawPowerUps() {
+      powerUps.forEach((p) => {
+        ctx.fillStyle = "#1b0f2e";
+        ctx.fillRect(p.x - 3, p.y + p.h, p.w + 6, 6);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillRect(p.x + 4, p.y + 4, p.w - 8, p.h - 8);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(p.x + p.w / 2 - 2, p.y + 4, 4, p.h - 8);
+      });
+    }
+
+    function circleRectCollision(circle, rect) {
+      const closestX = clamp(circle.x, rect.x, rect.x + rect.w);
+      const closestY = clamp(circle.y, rect.y, rect.y + rect.h);
+      const dx = circle.x - closestX;
+      const dy = circle.y - closestY;
+      return dx * dx + dy * dy <= circle.radius * circle.radius;
+    }
+
+    function resolveBallBrickCollision(ball, brick) {
+      const overlapLeft = ball.x + ball.radius - brick.x;
+      const overlapRight = brick.x + brick.w - (ball.x - ball.radius);
+      const overlapTop = ball.y + ball.radius - brick.y;
+      const overlapBottom = brick.y + brick.h - (ball.y - ball.radius);
+      const minOverlapX = Math.min(overlapLeft, overlapRight);
+      const minOverlapY = Math.min(overlapTop, overlapBottom);
+
+      if (minOverlapX < minOverlapY) {
+        ball.velX *= -1;
+        if (overlapLeft < overlapRight) {
+          ball.x = brick.x - ball.radius;
+        } else {
+          ball.x = brick.x + brick.w + ball.radius;
+        }
+      } else {
+        ball.velY *= -1;
+        if (overlapTop < overlapBottom) {
+          ball.y = brick.y - ball.radius;
+        } else {
+          ball.y = brick.y + brick.h + ball.radius;
+        }
+      }
+    }
+
+    function handleLifeLoss() {
+      world.lives -= 1;
+      if (world.lives <= 0) {
+        world.lives = 0;
+        world.gameOver = true;
+        showGameOver();
+        return;
+      }
+      resetBalls();
+    }
+
+    function spawnPowerUp() {
+      const width = 36;
+      const types = ["extra-ball"];
+      if (world.paddleBoosts < MAX_PADDLE_POWERUPS) {
+        types.push("paddle-width");
+      }
+      const type = types[Math.floor(Math.random() * types.length)];
+      const color = type === "paddle-width" ? "#52f58a" : "#ec7bff";
+      powerUps.push({
+        x: clamp(Math.random() * (canvas.width - width - 16) + 8, 8, canvas.width - width - 8),
+        y: 60,
+        w: width,
+        h: 18,
+        speed: 180,
+        type,
+        color,
+      });
+    }
+
+    function applyPaddleWidthBoost() {
+      if (world.paddleBoosts >= MAX_PADDLE_POWERUPS) return;
+      world.paddleBoosts += 1;
+      resetPaddle();
+    }
+
+    function updatePowerUps(dt) {
+      for (let i = powerUps.length - 1; i >= 0; i--) {
+        const p = powerUps[i];
+        p.y += p.speed * dt;
+        if (p.y > canvas.height) {
+          powerUps.splice(i, 1);
+          continue;
+        }
+        const overlapsPaddle =
+          p.y + p.h >= paddle.y &&
+          p.y <= paddle.y + paddle.h &&
+          p.x + p.w >= paddle.x &&
+          p.x <= paddle.x + paddle.w;
+        if (overlapsPaddle) {
+          if (p.type === "extra-ball") {
+            balls.push(createBall({ attached: false }));
+          } else if (p.type === "paddle-width") {
+            applyPaddleWidthBoost();
+          }
+          powerUps.splice(i, 1);
+        }
+      }
+    }
+
+    function advanceLevel() {
+      if (world.level < LEVELS.length - 1) {
+        world.level += 1;
+        notify(`Level ${world.level + 1}`);
+        buildLevel(world.level);
+        resetPaddle();
+        resetBalls();
+        return true;
+      }
+      world.gameOver = true;
+      showGameOver();
+      return false;
+    }
+
+    function updateBalls(dt) {
+      for (let i = balls.length - 1; i >= 0; i--) {
+        const ball = balls[i];
+        if (ball.attached) {
+          ball.x = paddle.x + paddle.w / 2;
+          ball.y = paddle.y - ball.radius - 2;
+          if (world.started && !world.gameOver) {
+            ball.relaunchTimer -= dt;
+            if (ball.relaunchTimer <= 0) {
+              ball.attached = false;
+              const spread = Math.PI / 3;
+              const angle = -Math.PI / 2 + (Math.random() - 0.5) * spread;
+              ball.velX = Math.cos(angle) * ball.speed;
+              ball.velY = Math.sin(angle) * ball.speed;
+            }
+          }
+          continue;
+        }
+
+        ball.x += ball.velX * dt;
+        ball.y += ball.velY * dt;
+
+        if (ball.x - ball.radius <= 8) {
+          ball.x = 8 + ball.radius;
+          ball.velX *= -1;
+        } else if (ball.x + ball.radius >= canvas.width - 8) {
+          ball.x = canvas.width - 8 - ball.radius;
+          ball.velX *= -1;
+        }
+
+        if (ball.y - ball.radius <= 40) {
+          ball.y = 40 + ball.radius;
+          ball.velY = Math.abs(ball.velY);
+        }
+
+        if (ball.y - ball.radius > canvas.height) {
+          balls.splice(i, 1);
+          if (balls.length === 0) {
+            handleLifeLoss();
+          }
+          continue;
+        }
+
+        if (
+          ball.y + ball.radius >= paddle.y &&
+          ball.y - ball.radius <= paddle.y + paddle.h &&
+          ball.x >= paddle.x &&
+          ball.x <= paddle.x + paddle.w &&
+          ball.velY > 0
+        ) {
+          const relative = (ball.x - (paddle.x + paddle.w / 2)) / (paddle.w / 2);
+          const newVelX = relative * ball.speed;
+          const remaining = Math.max(ball.speed * ball.speed - newVelX * newVelX, 1600);
+          const newVelY = -Math.sqrt(remaining);
+          ball.velX = newVelX;
+          ball.velY = newVelY;
+          ball.y = paddle.y - ball.radius - 1;
+        }
+
+        for (let b = bricks.length - 1; b >= 0; b--) {
+          const brick = bricks[b];
+          if (circleRectCollision(ball, brick)) {
+            bricks.splice(b, 1);
+            resolveBallBrickCollision(ball, brick);
+            world.score += SCORE_PER_BLOCK;
+            world.blocksCleared += 1;
+            if (bricks.length === 0) {
+              if (!advanceLevel()) {
+                return;
+              }
+              return;
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    const notify = (msg) => {
+      try {
+        if (window.NostrUI && typeof window.NostrUI.showToast === "function") {
+          window.NostrUI.showToast(msg);
+          return;
+        }
+      } catch (_) {}
+      console.log("[toast]", msg);
+    };
+
+    function showGameOver() {
+      if (!overlay) return;
+      overlayBlocks.textContent = world.blocksCleared;
+      overlayScore.textContent = `Score: ${world.score}`;
+      overlayStatus.textContent = "";
+      overlay.style.display = "flex";
+    }
+
+    async function postScoreToNostr() {
+      if (!window.NostrPost || !window.NostrSigners) {
+        notify("Nostr not ready");
+        return;
+      }
+      const preview = window.NostrPost?.formatScoreContent
+        ? window.NostrPost.formatScoreContent({
+            score: world.score,
+            baseUrl: window.location.origin,
+          })
+        : `Check out my score: ${world.score}!\n\nAt ${window.location.origin}`;
+      if (!confirm(`Post this to Nostr?\n\n${preview}`)) return;
+      try {
+        const res = await window.NostrPost.publishScore({
+          score: world.score,
+          baseUrl: window.location.origin,
+        });
+        overlayStatus.textContent = `Posted via ${res.signerMode || "nostr"}`;
+        notify("Score posted");
+      } catch (e) {
+        console.warn("Score publish failed", e);
+        overlayStatus.textContent = "";
+      }
+    }
+
+    let lastTime = performance.now();
+    function loop(now) {
+      const dt = Math.min(0.03, (now - lastTime) / 1000);
+      lastTime = now;
+
+      if (world.started && !world.gameOver) {
+        world.elapsedTime += dt;
+        if (world.elapsedTime >= world.nextSpeedBoostAt) {
+          boostBallSpeed();
+          world.nextSpeedBoostAt += 5;
+        }
+        if (world.elapsedTime >= world.nextPowerUpAt) {
+          spawnPowerUp();
+          world.nextPowerUpAt += POWERUP_INTERVAL;
+        }
+        const move =
+          (input.right ? 1 : 0) * paddle.speed - (input.left ? 1 : 0) * paddle.speed;
+        paddle.x = clamp(paddle.x + move * dt, 8, canvas.width - paddle.w - 8);
+        updateBalls(dt);
+        updatePowerUps(dt);
+      } else if (world.gameOver && input.restart) {
+        resetGame();
+      } else if (!world.started && input.restart) {
+        startGame();
+      }
+      input.restart = false;
+
+      drawBackground();
+      drawBricks();
+      drawPowerUps();
+      drawPaddle();
+      balls.forEach(drawBall);
+
+      hud.textContent = `Score: ${world.score} | Lives: ${world.lives} | Level: ${world.level + 1}`;
+
+      if (world.gameOver) {
+        ctx.fillStyle = "rgba(8, 10, 20, 0.75)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#f5d100";
+        ctx.textAlign = "center";
+        ctx.font = "20px 'Press Start 2P', 'VT323', 'Courier New', monospace";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 8);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "14px 'Press Start 2P', 'VT323', 'Courier New', monospace";
+        ctx.fillText("Press R to try again", canvas.width / 2, canvas.height / 2 + 24);
+        showGameOver();
+      }
+
+      requestAnimationFrame(loop);
+    }
+    setupWorldState();
+    resizeGameView();
+    window.addEventListener("resize", resizeGameView);
+    if (overlayRestartBtn) {
+      overlayRestartBtn.addEventListener("click", resetGame);
+    }
+    if (overlayPostBtn) {
+      overlayPostBtn.addEventListener("click", postScoreToNostr);
+    }
+    if (startGameBtn) {
+      startGameBtn.addEventListener("click", startGame);
+    }
+    requestAnimationFrame(loop);
+  </script>
+  <script
+    src="https://unpkg.com/nanalytics-tracker@0.1.2/dist/index.global.js"
+    data-site-uuid="5fb2876e-61f5-456c-9010-76283bc8d797"
+    data-cvm-pubkey="d8a066f85d621d634e24ee0bf741e27b6436af28782195de8aa90972e310e937"
+  ></script>
+</body>
+</html>

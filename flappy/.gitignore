@@ -1,0 +1,7 @@
+# Ignore implementation plan and other docs except README
+*.plan.md
+flappy-bird-implementation-plan.md
+PLAN.md
+
+# But allow README
+!README.md
