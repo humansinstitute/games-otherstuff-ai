@@ -1,25 +1,45 @@
 # Dependencies and build output
 node_modules/
+**/node_modules
+**/node_modules/**
 dist/
+**/dist
+**/dist/**
 build/
+**/build
+**/build/**
 coverage/
+**/coverage
+**/coverage/**
 logs/
+apps/logs/
 *.log
 
 # Local machine and editor state
 .DS_Store
 .mcp.json
+.claude/
+**/.claude
+**/.claude/**
 .claude/settings.local.json
 **/.claude/settings.local.json
 
 # Local secrets/config
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
 *.local.*
+**/*.local.*
 
 # Runtime databases
 *.db
 *.db-*
 *.sqlite
 *.sqlite-*
+
+# Local Autopilot runtime state
+apps/
+data/
+ecosystem.config.cjs
