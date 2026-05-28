@@ -498,6 +498,7 @@
       gap: 10px;
       justify-content: center;
       margin-top: 16px;
+      width: 100%;
     }
     .modal button {
       padding: 14px 24px;
@@ -509,11 +510,35 @@
       font-weight: 700;
       cursor: pointer;
     }
+    .modal-buttons button {
+      flex: 1;
+      min-width: 0;
+      padding-left: 12px;
+      padding-right: 12px;
+      white-space: nowrap;
+    }
     .modal button:hover {
       opacity: 0.9;
     }
     #postNostrBtn {
       background: #8b5cf6;
+    }
+    .completion-donate {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #3a3a3c;
+    }
+    .completion-donate.visible {
+      display: block;
+    }
+    .completion-donate p {
+      margin: 0 0 12px;
+      line-height: 1.4;
+    }
+    .completion-donate button {
+      background: #f97316;
+      width: 100%;
     }
     /* Hard mode toggle styles */
     .toggle-row {
@@ -651,6 +676,10 @@
       <div class="next-word">
         <div class="next-word-label">NEXT WORD</div>
         <div class="next-word-timer" id="modalTimer">--:--:--</div>
+      </div>
+      <div id="completionDonate" class="completion-donate">
+        <p>Word5 is a free game, but hosted on real servers. If you find it valuable, please consider donating</p>
+        <button id="completionDonateBtn">Donate</button>
       </div>
       <div class="modal-buttons">
         <button id="shareBtn">Share</button>
@@ -810,6 +839,8 @@
     const modalMessage = document.getElementById('modalMessage');
     const modalWord = document.getElementById('modalWord');
     const modalTimer = document.getElementById('modalTimer');
+    const completionDonate = document.getElementById('completionDonate');
+    const completionDonateBtn = document.getElementById('completionDonateBtn');
     const shareBtn = document.getElementById('shareBtn');
 
     // Calculate current 4-hour period
@@ -1225,6 +1256,9 @@
     };
 
     function showResult() {
+      const resultDisplayCount = Number(localStorage.getItem('word5-result-display-count') || 0) + 1;
+      localStorage.setItem('word5-result-display-count', String(resultDisplayCount));
+
       if (state.won) {
         const messages = ['Genius!', 'Magnificent!', 'Impressive!', 'Splendid!', 'Great!', 'Phew!'];
         modalTitle.textContent = messages[state.guesses.length - 1] || 'You Won!';
@@ -1236,6 +1270,7 @@
 
       modalWord.textContent = state.targetWord;
       renderStatsSummary();
+      completionDonate?.classList.toggle('visible', resultDisplayCount % 6 === 0);
 
       resultModal.classList.add('visible');
     }
@@ -1518,6 +1553,10 @@
           navigator.clipboard.writeText(text);
           showToast('Copied to clipboard!');
         }
+      });
+
+      completionDonateBtn?.addEventListener('click', () => {
+        window.NostrUI?.openDonateModal?.();
       });
 
       // Post to Nostr button
