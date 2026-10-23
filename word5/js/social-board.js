@@ -8,6 +8,7 @@ const RELAYS = [
 ];
 
 const COMPARE_WINDOW_DAYS = 21;
+const WORD5_ROTATION_HOURS = 24;
 const BLOSSOM_UPLOAD_SERVER = "https://blossom.primal.net";
 const SCORE_BY_RESULT = {
   "1": 10,
@@ -304,6 +305,17 @@ function getWord5ResultScore(result) {
 }
 
 function parseWord5Event(event) {
+  if (event?.eventId && event?.pubkey && Number.isFinite(event?.createdAt) && event?.puzzle && event?.result) {
+    return {
+      eventId: event.eventId,
+      pubkey: event.pubkey,
+      puzzle: Number(event.puzzle),
+      result: String(event.result).toUpperCase(),
+      points: Number(event.points) || 0,
+      createdAt: Number(event.createdAt),
+      raw: event,
+    };
+  }
   if (!event?.content || !Array.isArray(event.tags)) return null;
 
   const tagMap = {};
@@ -346,7 +358,7 @@ function buildScoreMap(events, windowDays, allowedAuthors = null) {
   const latestByPuzzle = new Map();
 
   for (const event of events || []) {
-    if (event.created_at < cutoff) continue;
+    if (Number(event.created_at ?? event.createdAt) < cutoff) continue;
     if (allowedAuthors && !allowedAuthors.has(event.pubkey)) continue;
 
     const parsed = parseWord5Event(event);
@@ -371,6 +383,27 @@ function buildScoreMap(events, windowDays, allowedAuthors = null) {
   }
 
   return perUser;
+}
+
+async function fetchArchivedScoreHistory(authors, since, until, limit = 2000) {
+  const uniqueAuthors = [...new Set(authors || [])];
+  const chunks = uniqueAuthors.length
+    ? Array.from({ length: Math.ceil(uniqueAuthors.length / 20) }, (_, index) => uniqueAuthors.slice(index * 20, index * 20 + 20))
+    : [[]];
+  const windows = [];
+  for (let start = since; start <= until; start += 90 * 86400 + 1) {
+    windows.push([start, Math.min(until, start + 90 * 86400)]);
+  }
+  const batches = await Promise.all(chunks.flatMap((chunk) => windows.map(async ([windowSince, windowUntil]) => {
+    const params = new URLSearchParams({ since: String(windowSince), until: String(windowUntil), limit: String(limit) });
+    if (chunk.length) params.set("authors", chunk.join(","));
+    const response = await fetch(`api/social-history?${params}`);
+    if (!response.ok) throw new Error(`Social history API returned ${response.status}`);
+    const rows = (await response.json()).rows || [];
+    if (rows.length >= limit) throw new Error("Social history response reached its safety limit");
+    return rows;
+  })));
+  return [...new Map(batches.flat().map((row) => [row.eventId, row])).values()];
 }
 
 function buildPlayerSummary(pubkey, entries) {
@@ -750,12 +783,8 @@ async function subscribeToFollows() {
       return;
     }
 
-    const events = await pool.querySync(RELAYS, {
-      kinds: [1],
-      "#t": ["word5"],
-      authors: followPubkeys,
-      limit: 300,
-    });
+    const now = Math.floor(Date.now() / 1000);
+    const events = await fetchArchivedScoreHistory(followPubkeys, now - 400 * 86400, now);
 
     const recentScoreMap = buildScoreMap(
       events,
@@ -1341,12 +1370,10 @@ async function loadCompareView({ leftPubkey, rightPubkey, updateHistory = true }
   }
 
   try {
-    const events = await pool.querySync(RELAYS, {
-      kinds: [1],
-      "#t": ["word5"],
-      authors: [leftPubkey, rightPubkey],
-      limit: 240,
-    });
+    const now = Math.floor(Date.now() / 1000);
+    const events = await fetchArchivedScoreHistory(
+      [leftPubkey, rightPubkey], now - COMPARE_WINDOW_DAYS * 86400, now
+    );
 
     await loadProfiles([leftPubkey, rightPubkey]);
 
@@ -1419,8 +1446,42 @@ async function loadCompareView({ leftPubkey, rightPubkey, updateHistory = true }
 }
 
 function getTagValue(event, tagName) {
-  const tag = event.tags.find((candidate) => candidate[0] === tagName);
+  if (Number.isFinite(event?.[tagName])) return Number(event[tagName]);
+  const tag = event.tags?.find((candidate) => candidate[0] === tagName);
   return tag ? parseInt(tag[1], 10) || 0 : 0;
+}
+
+function getTagText(event, tagName) {
+  const tag = event.tags.find((candidate) => candidate[0] === tagName);
+  return tag ? tag[1] || "" : "";
+}
+
+function isStatsCorrectionEvent(event) {
+  return (
+    getTagText(event, "schema") === "word5.stats.v1" ||
+    getTagText(event, "type") === "stats-correction"
+  );
+}
+
+function getWord5DisplayPuzzle(event) {
+  const taggedPuzzle = getTagValue(event, "puzzle");
+  if (taggedPuzzle > 0) return taggedPuzzle;
+  const secondsPerPeriod = WORD5_ROTATION_HOURS * 60 * 60;
+  return Math.floor(Number(event.created_at || 0) / secondsPerPeriod) % 1000;
+}
+
+function isPlausibleAfterCorrection(event, correction) {
+  if (!correction || isStatsCorrectionEvent(event)) return true;
+  if (event.created_at < correction.created_at) return false;
+
+  const correctionStreak = getTagValue(correction, "streak");
+  const eventStreak = getTagValue(event, "streak");
+  if (eventStreak <= 0) return true;
+
+  const correctionPuzzle = getWord5DisplayPuzzle(correction);
+  const eventPuzzle = getWord5DisplayPuzzle(event);
+  const puzzleDiff = (eventPuzzle - correctionPuzzle + 1000) % 1000;
+  return eventStreak <= correctionStreak + puzzleDiff + 1;
 }
 
 async function renderLeaderboardEntry(event, rank) {
@@ -1470,24 +1531,10 @@ async function subscribeToTop() {
   clearPosts();
 
   try {
-    const events = await pool.querySync(RELAYS, {
-      kinds: [1],
-      "#t": ["word5"],
-      limit: 200,
-    });
-
-    const bestByUser = new Map();
-    for (const event of events) {
-      const maxStreak = getTagValue(event, "maxStreak");
-      if (maxStreak <= 0) continue;
-
-      const existing = bestByUser.get(event.pubkey);
-      if (!existing || maxStreak > getTagValue(existing, "maxStreak")) {
-        bestByUser.set(event.pubkey, event);
-      }
-    }
-
-    await displayLeaderboard(Array.from(bestByUser.values()));
+    const response = await fetch("api/top-streaks?limit=50");
+    if (!response.ok) throw new Error(`Top streaks API returned ${response.status}`);
+    const { rows } = await response.json();
+    await displayLeaderboard(rows || []);
   } catch (e) {
     console.error("[Top] Error:", e);
     showEmptyState("Error loading leaderboard. Please try again.");
@@ -1519,11 +1566,68 @@ async function displayLeaderboard(events) {
   }
 }
 
+let scoreDays = 7;
+let scorePublishedOnly = false;
+
+async function subscribeToScores() {
+  currentCompareState = null;
+  showLoading();
+  const postList = document.getElementById("postList");
+  try {
+    const response = await fetch(`api/scores?days=${scoreDays}&published=${scorePublishedOnly}`);
+    if (!response.ok) throw new Error(`Score API returned ${response.status}`);
+    const { rows } = await response.json();
+    postList.innerHTML = "";
+    const controls = document.createElement("div");
+    controls.className = "social-sub-switcher";
+    controls.innerHTML = [1, 7, 21].map((days) =>
+      `<button class="social-sub-btn${scoreDays === days ? " active" : ""}" data-days="${days}">${days} day${days === 1 ? "" : "s"}</button>`
+    ).join("") + `<label style="display:inline-flex;align-items:center;gap:6px;margin-left:8px;font-size:13px;color:#ddd">
+      <input type="checkbox" id="publishedScoresOnly" ${scorePublishedOnly ? "checked" : ""}> Posted to Nostr only</label>`;
+    postList.appendChild(controls);
+    controls.querySelectorAll("[data-days]").forEach((button) => button.addEventListener("click", () => {
+      scoreDays = Number(button.dataset.days);
+      void subscribeToScores();
+    }));
+    controls.querySelector("#publishedScoresOnly").addEventListener("change", (event) => {
+      scorePublishedOnly = event.target.checked;
+      void subscribeToScores();
+    });
+    const note = document.createElement("p");
+    note.style.cssText = "color:#818384;font-size:12px;margin:12px 4px";
+    note.textContent = "Server recorded scores from signed-in games. A signature identifies a player; it does not prove fair play.";
+    postList.appendChild(note);
+    if (!rows.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "No recorded scores in this period yet.";
+      postList.appendChild(empty);
+      return;
+    }
+    await loadProfiles(rows.map((row) => row.pubkey));
+    for (const [index, row] of rows.entries()) {
+      const identity = await getDisplayIdentity(row.pubkey);
+      const entry = document.createElement("div");
+      entry.className = "leaderboard-entry";
+      entry.dataset.pubkey = row.pubkey;
+      entry.innerHTML = `<div class="lb-rank">#${index + 1}</div>
+        <div class="lb-avatar">${renderAvatarHtml(identity.avatar)}</div>
+        <div class="lb-info"><div class="lb-name">${escapeHtml(identity.name)}</div>
+        <div class="lb-stats">${row.games} game${row.games === 1 ? "" : "s"} · ${row.wins} win${row.wins === 1 ? "" : "s"} · ${row.publishedGames} posted</div></div>
+        <div class="lb-streak"><div class="lb-streak-value">${row.points}</div><div class="lb-streak-label">points</div></div>`;
+      postList.appendChild(entry);
+    }
+  } catch (error) {
+    console.error("[Scores] Error:", error);
+    showEmptyState("Unable to load recorded scores right now.");
+  }
+}
+
 function getRouteFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const tab = params.get("tab");
   return {
-    tab: ["social", "follows", "top", "league"].includes(tab) ? tab : "social",
+    tab: ["social", "follows", "top", "scores", "league"].includes(tab) ? tab : "social",
     player: params.get("player") || "",
     opponent: params.get("opponent") || "",
   };
@@ -1571,6 +1675,9 @@ function switchTab(tabName, updateHistory = true) {
     case "top":
       subscribeToTop();
       break;
+    case "scores":
+      subscribeToScores();
+      break;
     case "league":
       if (window.LeagueManager?.renderLeagueList) {
         window.LeagueManager.renderLeagueList();
@@ -1595,6 +1702,7 @@ async function init() {
   // Expose shared utilities for league.js and other modules
   window.SocialBoard = {
     parseWord5Event,
+    fetchArchivedScoreHistory,
     SCORE_BY_RESULT,
     escapeHtml,
     renderAvatarHtml,

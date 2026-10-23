@@ -1,4 +1,13 @@
 .worktrees/
 .worktrees*
 apps/logs/
+node_modules/
+.env
 *.log
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.visitor-key
+.mcp.json
+tmp/docs/handoffs/
