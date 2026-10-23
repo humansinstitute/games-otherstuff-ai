@@ -43,6 +43,7 @@ apps/logs/
 apps/
 data/
 ecosystem.config.cjs
+**/ecosystem.config.cjs
 
 # Separate canonical repository checked out inside this workspace
 word5-server/
